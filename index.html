@@ -272,11 +272,24 @@ function exportICS(docNome){
   showToast(lzDoc.length+" lezioni esportate!");
 }
 
-/* ── Export CSV docenti ──────────────────────────────────────────── */
+/* ── Export CSV docenti (filtrato per sessione attiva) ───────────── */
 function exportDocentiCSV(){
   const sa=getSA();const lz=sa?sa.lezioni:[];
-  const insOrd=sortN(S.insegnamenti.map(i=>i.nome));
-  const docOrd=sortN(S.docenti.map(d=>d.nome));
+
+  // Filtra insegnamenti e docenti della sessione attiva (stessa logica di renderAnagrafiche)
+  let visInsIds,visDocIds;
+  if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length){
+    visInsIds=new Set(sa.insegnamentiIds);
+    visDocIds=new Set(sa.docentiIds||[]);
+  }else if(sa&&lz.length){
+    visInsIds=new Set(lz.map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));
+    visDocIds=new Set(lz.map(l=>{const d=S.docenti.find(x=>x.nome===l.docente);return d?d.id:null}).filter(Boolean));
+  }else{
+    visInsIds=new Set();
+    visDocIds=new Set();
+  }
+  const insOrd=sortN(S.insegnamenti.filter(i=>visInsIds.has(i.id)).map(i=>i.nome));
+  const docOrd=sortN(S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome));
   const rows=[["Docente","Totale ore",...insOrd]];
   docOrd.forEach(docNome=>{
     const orePerIns={};
@@ -408,10 +421,11 @@ function saveSlot(ctxId){
 }
 
 function deleteLZ(lezId){
-  if(!confirm("Eliminare questa lezione?"))return;
-  const sa=getSA();if(!sa)return;
-  S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:s.lezioni.filter(l=>l.id!==lezId)}:s);
-  saveState();closeModal();renderApp();showToast("Lezione eliminata.");
+  openConfirm("Eliminare questa lezione?",()=>{
+    const sa=getSA();if(!sa)return;
+    S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:s.lezioni.filter(l=>l.id!==lezId)}:s);
+    saveState();closeModal();renderApp();showToast("Lezione eliminata.");
+  });
 }
 
 /* ── Tabellone ───────────────────────────────────────────────────── */
@@ -451,7 +465,7 @@ function renderTabellone(cont,pm,fdoc){
           `font-size:8.5px;height:36px;transition:background .12s`;
         if(!isDom){
           td.style.cursor="pointer";
-          td.classList.add(lez&&show?"":"slot-free");
+          if(!lez||!show) td.classList.add("slot-free");
           td.addEventListener("mouseenter",()=>{if(!lez||!show)td.style.background=ML});
           td.addEventListener("mouseleave",()=>{if(!lez||!show)td.style.background="#fff"});
           td.addEventListener("click",()=>handleSlotClick(iso,slot,DAYS_IT[di],lez&&show?lez.id:null,pm));
@@ -500,6 +514,20 @@ function renderVistaDocente(cont){
   const insDispo=DOCSEL?insForDoc(DOCSEL):S.insegnamenti;
   const wrap=document.createElement("div");
 
+  // Calcola i docenti visibili per la sessione attiva (stessa logica di renderAnagrafiche)
+  let visDocIds;
+  if(sa&&sa.docentiIds&&sa.docentiIds.length){
+    visDocIds=new Set(sa.docentiIds);
+  }else if(sa&&sa.lezioni&&sa.lezioni.length){
+    visDocIds=new Set(sa.lezioni.map(l=>{const d=S.docenti.find(x=>x.nome===l.docente);return d?d.id:null}).filter(Boolean));
+  }else{
+    visDocIds=new Set(); // sessione vuota senza import: nessun docente predefinito
+  }
+  const docentiSessione=sortN(S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome));
+
+  // Se DOCSEL non è più nella sessione attiva, resettalo
+  if(DOCSEL&&!docentiSessione.includes(DOCSEL)){DOCSEL="";INSSEL="";}
+
   /* Barra selezione */
   const bar=document.createElement("div");
   bar.style.cssText=`background:${ML};border-radius:12px;padding:16px 20px;margin-bottom:20px;`+
@@ -509,7 +537,10 @@ function renderVistaDocente(cont){
   sdW.innerHTML=`<label class="lbl" style="color:${MD}">Il mio nome</label>`;
   const sd=document.createElement("select");sd.style.minWidth="200px";
   sd.innerHTML=`<option value="">— Seleziona docente —</option>`+
-    sortN(S.docenti.map(d=>d.nome)).map(n=>`<option value="${escA(n)}"${DOCSEL===n?' selected':''}>${escH(n)}</option>`).join('');
+    docentiSessione.map(n=>`<option value="${escA(n)}"${DOCSEL===n?' selected':''}>${escH(n)}</option>`).join('');
+  if(!docentiSessione.length){
+    sd.innerHTML=`<option value="" disabled>Nessun docente nella sessione attiva</option>`;
+  }
   sd.addEventListener("change",e=>{DOCSEL=e.target.value;INSSEL="";renderApp()});
   sdW.appendChild(sd);bar.appendChild(sdW);
 
@@ -828,10 +859,182 @@ function renderSessioniTab(cont){
   });
   cont.innerHTML="";cont.appendChild(wrap);
 }
-function setSessAttiva(id){S.sessioneAttiva=id;saveState();renderApp();showToast("Sessione aggiornata!")}
+function setSessAttiva(id){
+  S.sessioneAttiva=id;
+  // Reset selezioni docente/insegnamento: appartengono alla sessione precedente
+  DOCSEL="";INSSEL="";
+  saveState();renderApp();showToast("Sessione attiva aggiornata!");
+}
+
+/* ── Confirm modal (sostituisce confirm() bloccato in alcuni contesti) ── */
+function openConfirm(msg,onYes){
+  const cid=uid();
+  (window._confirmCb=window._confirmCb||{})[cid]=onYes;
+  openModal(`<div class="modal-box" style="max-width:400px">
+    <div style="font-size:22px;text-align:center;margin-bottom:14px">⚠️</div>
+    <p style="font-size:14px;color:#222;text-align:center;margin-bottom:22px;line-height:1.5">${escH(msg)}</p>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button id="conf-no" class="btn btn-ghost">Annulla</button>
+      <button id="conf-yes" class="btn btn-danger">Sì, elimina</button>
+    </div>
+  </div>`);
+  document.getElementById("conf-no").onclick=closeModal;
+  document.getElementById("conf-yes").onclick=()=>{
+    closeModal();
+    const cb=(window._confirmCb||{})[cid];
+    if(cb)cb();
+  };
+}
+
+function deleteSess(id){
+  openConfirm("Eliminare questa sessione e tutte le sue lezioni?",()=>{
+    S.sessioni=S.sessioni.filter(s=>s.id!==id);
+    if(S.sessioneAttiva===id)S.sessioneAttiva=S.sessioni[0]?.id||"";
+    saveState();renderApp();showToast("Sessione eliminata.");
+  });
+}
+// Stato temporaneo del CSV parsed (condiviso tra i passi della modale)
+let _csvParsed=null; // {cdsList, rows}
+
+function parseCSVCarico(text){
+  // Parser CSV robusto (gestisce virgolette con eventuali virgole interne)
+  function parseRow(line){
+    const res=[];let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++}else inQ=!inQ}
+      else if(c===','&&!inQ){res.push(cur.trim());cur=''}
+      else cur+=c;
+    }
+    res.push(cur.trim());
+    return res;
+  }
+  const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l=>l.trim());
+  if(lines.length<2)return null;
+  // skip header (row 0)
+  const rows=[];
+  const cdsList=new Set();
+  for(let i=1;i<lines.length;i++){
+    const r=parseRow(lines[i]);
+    if(r.length<6)continue;
+    const cds=(r[5]||'').trim();
+    if(!cds)continue;
+    cdsList.add(cds);
+    rows.push(r);
+  }
+  return{cdsList:[...cdsList].sort(),rows};
+}
+
+function onCSVFileChange(evt){
+  const file=evt.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const parsed=parseCSVCarico(e.target.result);
+    if(!parsed||!parsed.rows.length){showErr("File CSV non valido o vuoto.");return}
+    _csvParsed=parsed;
+    // Mostra step 2: selezione CdS
+    const box=document.getElementById("csv-step2");
+    if(!box)return;
+    box.innerHTML=`<label class="lbl" style="margin-top:4px">Seleziona il Corso di Studi *</label>
+      <select id="csv-cds" style="margin-bottom:10px">
+        <option value="">— Scegli CdS —</option>
+        ${parsed.cdsList.map(c=>`<option value="${escA(c)}">${escH(c)}</option>`).join('')}
+      </select>
+      <div id="csv-preview" style="font-size:12px;color:#555;min-height:20px"></div>`;
+    document.getElementById("csv-cds")?.addEventListener("change",onCSVCdsChange);
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+function onCSVCdsChange(){
+  const cds=(document.getElementById("csv-cds")||{}).value;
+  if(!cds||!_csvParsed)return;
+  const rows=_csvParsed.rows.filter(r=>(r[5]||'').trim()===cds);
+  // Conta insegnamenti e docenti unici
+  const insSet=new Set();const docSet=new Set();
+  rows.forEach(r=>{
+    const nome=(r[2]||'').trim();if(nome)insSet.add(nome);
+    [[12],[16],[20],[24]].forEach(([di])=>{const d=(r[di]||'').trim();if(d)docSet.add(d)});
+  });
+  const prev=document.getElementById("csv-preview");
+  if(prev)prev.innerHTML=`<span style="color:#27ae60;font-weight:700">✅ Trovati: ${insSet.size} insegnamenti, ${docSet.size} docenti</span>`;
+}
+
+function applyCSVImport(cds){
+  if(!_csvParsed||!cds)return false;
+  const rows=_csvParsed.rows.filter(r=>(r[5]||'').trim()===cds);
+  if(!rows.length)return false;
+
+  const insMap={}; // nome→oreGlobali
+  const docMap={}; // nome→{insNome→oreDocente}
+
+  rows.forEach(r=>{
+    const insNome=(r[2]||'').trim();if(!insNome)return;
+    const oreGlob=parseInt(r[10])||0;
+    if(!insMap[insNome]||oreGlob>0)insMap[insNome]=oreGlob;
+    const coppie=[[12,13],[16,17],[20,21],[24,25]];
+    coppie.forEach(([ni,oi])=>{
+      const docNome=(r[ni]||'').trim();
+      const oreDoc=parseInt(r[oi])||0;
+      if(!docNome||oreDoc<=0)return;
+      if(!docMap[docNome])docMap[docNome]={};
+      docMap[docNome][insNome]=(docMap[docNome][insNome]||0)+oreDoc;
+    });
+  });
+
+  // Tieni traccia degli ID creati/aggiornati per questa sessione
+  const sessionInsIds=[];
+  const sessionDocIds=[];
+
+  // 1. Insegnamenti
+  Object.entries(insMap).forEach(([nome,ore])=>{
+    let existing=S.insegnamenti.find(i=>i.nome.toLowerCase()===nome.toLowerCase());
+    if(existing){
+      S.insegnamenti=S.insegnamenti.map(i=>i.id===existing.id?{...i,lezioniAssegnate:ore>0?ore:i.lezioniAssegnate}:i);
+      sessionInsIds.push(existing.id);
+    }else{
+      const newIns={id:uid(),nome,lezioniAssegnate:ore>0?ore:12};
+      S.insegnamenti.push(newIns);
+      sessionInsIds.push(newIns.id);
+    }
+  });
+
+  // 2. Docenti
+  Object.entries(docMap).forEach(([docNome,insOreMap])=>{
+    const insegnamenti=Object.entries(insOreMap).map(([iNome,maxOre])=>{
+      const ins=S.insegnamenti.find(i=>i.nome.toLowerCase()===iNome.toLowerCase());
+      if(!ins)return null;
+      return{insId:ins.id,maxOre:maxOre>0?maxOre:null};
+    }).filter(Boolean);
+    let existing=S.docenti.find(d=>d.nome.toLowerCase()===docNome.toLowerCase());
+    if(existing){
+      const existingIns=[...(existing.insegnamenti||[])];
+      insegnamenti.forEach(ni=>{
+        const idx=existingIns.findIndex(x=>x.insId===ni.insId);
+        if(idx>=0)existingIns[idx]={...existingIns[idx],maxOre:ni.maxOre};
+        else existingIns.push(ni);
+      });
+      S.docenti=S.docenti.map(d=>d.id===existing.id?{...d,insegnamenti:existingIns}:d);
+      sessionDocIds.push(existing.id);
+    }else{
+      const newDoc={id:uid(),nome:docNome,insegnamenti};
+      S.docenti.push(newDoc);
+      sessionDocIds.push(newDoc.id);
+    }
+  });
+
+  // Salva i riferimenti nella sessione per il filtro anagrafiche
+  _csvSessionInsIds=sessionInsIds;
+  _csvSessionDocIds=sessionDocIds;
+  return true;
+}
+let _csvSessionInsIds=[];
+let _csvSessionDocIds=[];
+
 function openSessModal(id){
   const sess=id?S.sessioni.find(s=>s.id===id):null;
-  openModal(`<div class="modal-box">
+  _csvParsed=null; // reset stato CSV
+  openModal(`<div class="modal-box" style="max-width:640px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
       <h3 style="color:${M};font-weight:800;font-size:15px">${sess?"Modifica sessione":"Nuova sessione"}</h3>
       <button id="sm-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button>
@@ -850,6 +1053,17 @@ function openSessModal(id){
         <input type="checkbox" id="s-mod" ${sess==null||sess.modificabileDocenti?'checked':''}
           style="width:auto;accent-color:${M}"/> ✏️ Modificabile dai docenti</label>
     </div>
+    ${!sess?`<div style="background:#f0f8ff;border:1.5px solid #2980b9;border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-weight:800;color:#1a5276;font-size:13px;margin-bottom:10px">
+        📂 Importa Carico Didattico (opzionale)
+      </div>
+      <p style="font-size:12px;color:#555;margin-bottom:10px">
+        Carica il file CSV del carico didattico per importare automaticamente insegnamenti, docenti e ore assegnate per un CdS specifico.
+      </p>
+      <label class="lbl">File CSV carico didattico</label>
+      <input type="file" id="csv-file" accept=".csv" style="margin-bottom:10px"/>
+      <div id="csv-step2"></div>
+    </div>`:''}
     <div style="display:flex;justify-content:flex-end;gap:10px">
       <button id="sm-cancel" class="btn btn-ghost">Annulla</button>
       <button id="sm-save" class="btn btn-primary">Salva sessione</button>
@@ -858,7 +1072,12 @@ function openSessModal(id){
   document.getElementById("sm-close").onclick=closeModal;
   document.getElementById("sm-cancel").onclick=closeModal;
   document.getElementById("sm-save").onclick=()=>saveSess(id||"");
+  // Bind file input solo per nuove sessioni
+  if(!sess){
+    document.getElementById("csv-file")?.addEventListener("change",onCSVFileChange);
+  }
 }
+
 function saveSess(id){
   const nome=(document.getElementById("s-nome")||{}).value?.trim();
   const ini=(document.getElementById("s-ini")||{}).value;
@@ -867,23 +1086,36 @@ function saveSess(id){
   const mod=document.getElementById("s-mod")?.checked;
   if(!nome||!ini||!fin){showErr("Compila tutti i campi");return}
   if(ini>fin){showErr("La data di inizio deve precedere la data di fine");return}
+
+  // Gestione import CSV (solo per nuove sessioni)
+  let csvApplied=false;
+  if(!id&&_csvParsed){
+    const cds=(document.getElementById("csv-cds")||{}).value;
+    if(cds){
+      csvApplied=applyCSVImport(cds);
+      if(!csvApplied){showErr("Errore durante l'importazione del CSV. Verificare il file.");return}
+    }
+  }
+
   if(id){
     S.sessioni=S.sessioni.map(s=>s.id===id?{...s,nome,dataInizio:ini,dataFine:fin,
       visibileDocenti:!!vis,modificabileDocenti:!!mod}:s);
     showToast("Sessione aggiornata!");
   }else{
     const ns={id:uid(),nome,dataInizio:ini,dataFine:fin,
-      visibileDocenti:!!vis,modificabileDocenti:!!mod,lezioni:[]};
-    S.sessioni.push(ns);if(!S.sessioneAttiva)S.sessioneAttiva=ns.id;
-    showToast("Sessione creata!");
+      visibileDocenti:!!vis,modificabileDocenti:!!mod,lezioni:[],
+      // se è stato fatto un import CSV, registra quali insegnamenti e docenti appartengono a questa sessione
+      insegnamentiIds:csvApplied?[..._csvSessionInsIds]:null,
+      docentiIds:csvApplied?[..._csvSessionDocIds]:null
+    };
+    S.sessioni.push(ns);
+    S.sessioneAttiva=ns.id;
+    showToast(csvApplied
+      ?"✅ Sessione creata e carico didattico importato!"
+      :"Sessione creata!");
   }
+  _csvParsed=null;_csvSessionInsIds=[];_csvSessionDocIds=[];
   saveState();closeModal();renderApp();
-}
-function deleteSess(id){
-  if(!confirm("Eliminare questa sessione e tutte le sue lezioni?"))return;
-  S.sessioni=S.sessioni.filter(s=>s.id!==id);
-  if(S.sessioneAttiva===id)S.sessioneAttiva=S.sessioni[0]?.id||"";
-  saveState();renderApp();showToast("Sessione eliminata.");
 }
 
 /* ── Tabellone Tab ───────────────────────────────────────────────── */
@@ -908,39 +1140,88 @@ function renderTabelloneTab(cont){
   renderTabellone(tbDiv,true,TF_DOC||null);
 }
 function confirmReset(){
-  if(!confirm("Resettare TUTTE le lezioni della sessione attiva?"))return;
-  const sa=getSA();if(!sa)return;
-  S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:[]}:s);
-  saveState();renderApp();showToast("Sessione resettata.");
+  openConfirm("Resettare TUTTE le lezioni della sessione attiva?",()=>{
+    const sa=getSA();if(!sa)return;
+    S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:[]}:s);
+    saveState();renderApp();showToast("Sessione resettata.");
+  });
 }
 
 /* ── Anagrafiche ─────────────────────────────────────────────────── */
 function renderAnagrafiche(cont){
+  const sa=getSA();
   const wrap=document.createElement("div");
   wrap.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:24px";
+
+  // Determina il sottoinsieme di insegnamenti e docenti per la sessione attiva.
+  // Priorità: 1) se la sessione ha insegnamentiIds/docentiIds (da import CSV) li usa,
+  //           2) altrimenti usa le lezioni effettivamente inserite nella sessione,
+  //           3) se la sessione è vuota e non ha import, mostra tutto.
+  let visInsIds, visDocIds;
+
+  if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length){
+    // Sessione con import CSV: usa le liste registrate
+    visInsIds=new Set(sa.insegnamentiIds);
+    visDocIds=new Set(sa.docentiIds||[]);
+  }else if(sa&&sa.lezioni&&sa.lezioni.length){
+    // Sessione con lezioni ma senza import CSV: ricava dalle lezioni
+    visInsIds=new Set(sa.lezioni.map(l=>{
+      const ins=S.insegnamenti.find(i=>i.nome===l.insegnamento);
+      return ins?ins.id:null;
+    }).filter(Boolean));
+    visDocIds=new Set(sa.lezioni.map(l=>{
+      const doc=S.docenti.find(d=>d.nome===l.docente);
+      return doc?doc.id:null;
+    }).filter(Boolean));
+  }else{
+    // Sessione vuota senza import: lista vuota
+    visInsIds=new Set();
+    visDocIds=new Set();
+  }
+
+  const sessLabel=sa?` — ${escH(sa.nome)}`:'';
 
   /* Colonna Docenti */
   const docCol=document.createElement("div");
   const docHdr=document.createElement("div");
   docHdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";
-  docHdr.innerHTML=`<h3 style="color:#1a1a1a;font-weight:800;font-size:15px">👩‍🏫 Docenti</h3>`;
-  const dbtns=document.createElement("div");dbtns.style.cssText="display:flex;gap:6px";
+  docHdr.innerHTML=`<div>
+    <h3 style="color:#1a1a1a;font-weight:800;font-size:15px">👩‍🏫 Docenti</h3>
+    <div style="font-size:11px;color:#888;margin-top:2px">Sessione attiva${sessLabel}</div>
+  </div>`;
+  const dbtns=document.createElement("div");dbtns.style.cssText="display:flex;gap:6px;flex-shrink:0";
   const csvBtn=document.createElement("button");csvBtn.className="btn btn-teal btn-xs";
   csvBtn.textContent="⬇ Export CSV ore";csvBtn.addEventListener("click",exportDocentiCSV);
   const addD=document.createElement("button");addD.className="btn btn-primary btn-xs";
   addD.textContent="+ Aggiungi";addD.addEventListener("click",()=>openDocModal(null));
   dbtns.appendChild(csvBtn);dbtns.appendChild(addD);docHdr.appendChild(dbtns);docCol.appendChild(docHdr);
+
   const docList=document.createElement("div");
   docList.style.cssText="max-height:560px;overflow-y:auto;padding-right:4px";
-  const sa=getSA();
-  sortN(S.docenti.map(d=>d.nome)).forEach(nome=>{
+
+  const docentiVisibili=sortN(
+    S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome)
+  );
+
+  if(!docentiVisibili.length){
+    const empty=document.createElement("p");
+    empty.style.cssText="font-size:13px;color:#888;padding:12px 0";
+    empty.textContent="Nessun docente per la sessione attiva.";
+    docList.appendChild(empty);
+  }
+
+  docentiVisibili.forEach(nome=>{
     const d=S.docenti.find(x=>x.nome===nome);
-    const ni=d?.insegnamenti?.length||0;
+    const ni=d?.insegnamenti?.filter(x=>visInsIds.has(x.insId)).length||0;
+    const niTot=d?.insegnamenti?.length||0;
     const oreD=sa?sa.lezioni.filter(l=>l.docente===nome).length:0;
     const item=document.createElement("div");item.className="list-item";
     const info=document.createElement("div");info.style.cssText="flex:1;min-width:0";
+    const subTxt=niTot===0
+      ?"Tutti gli insegnamenti"
+      :`${ni} ins. in questa sessione`;
     info.innerHTML=`<div class="item-title">${escH(nome)}</div>
-      <div class="item-sub">${ni===0?"Tutti gli insegnamenti":ni+" ins. vincolat"+(ni===1?"o":"i")} · ${oreD} ore inserite</div>`;
+      <div class="item-sub">${subTxt} · ${oreD} ore inserite</div>`;
     const bx=document.createElement("div");bx.style.cssText="display:flex;gap:6px;flex-shrink:0";
     const eb=document.createElement("button");eb.className="btn btn-ghost btn-xs";
     eb.textContent="✏️ Modifica";eb.addEventListener("click",()=>openDocModal(d.id));
@@ -955,17 +1236,32 @@ function renderAnagrafiche(cont){
   const insCol=document.createElement("div");
   const insHdr=document.createElement("div");
   insHdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";
-  insHdr.innerHTML=`<h3 style="color:#1a1a1a;font-weight:800;font-size:15px">📚 Insegnamenti</h3>`;
+  insHdr.innerHTML=`<div>
+    <h3 style="color:#1a1a1a;font-weight:800;font-size:15px">📚 Insegnamenti</h3>
+    <div style="font-size:11px;color:#888;margin-top:2px">Sessione attiva${sessLabel}</div>
+  </div>`;
   const addI=document.createElement("button");addI.className="btn btn-primary btn-xs";
   addI.textContent="+ Aggiungi";addI.addEventListener("click",()=>openInsModal(null));
   insHdr.appendChild(addI);insCol.appendChild(insHdr);
+
   const insList=document.createElement("div");
   insList.style.cssText="max-height:560px;overflow-y:auto;padding-right:4px";
-  S.insegnamenti.forEach(ins=>{
+
+  const insegnamentiVisibili=S.insegnamenti.filter(i=>visInsIds.has(i.id));
+
+  if(!insegnamentiVisibili.length){
+    const empty=document.createElement("p");
+    empty.style.cssText="font-size:13px;color:#888;padding:12px 0";
+    empty.textContent="Nessun insegnamento per la sessione attiva.";
+    insList.appendChild(empty);
+  }
+
+  insegnamentiVisibili.forEach(ins=>{
+    const oreIns=sa?sa.lezioni.filter(l=>l.insegnamento===ins.nome).length:0;
     const item=document.createElement("div");item.className="list-item";
     const info=document.createElement("div");info.style.cssText="flex:1;min-width:0";
     info.innerHTML=`<div class="item-title" style="font-size:12px">${escH(ins.nome)}</div>
-      <div class="item-sub">${ins.lezioniAssegnate} lezioni previste</div>`;
+      <div class="item-sub">${ins.lezioniAssegnate} ore previste · ${oreIns} inserite</div>`;
     const bx=document.createElement("div");bx.style.cssText="display:flex;gap:6px;flex-shrink:0";
     const eb=document.createElement("button");eb.className="btn btn-ghost btn-xs";
     eb.textContent="✏️ Modifica";eb.addEventListener("click",()=>openInsModal(ins.id));
@@ -982,6 +1278,18 @@ function openDocModal(id){
   const d=id?S.docenti.find(x=>x.id===id):null;
   const vinc=d?.insegnamenti||[];const vmap={};
   vinc.forEach(v=>{vmap[v.insId]={checked:true,maxOre:v.maxOre}});
+
+  // Mostra solo gli insegnamenti della sessione attiva
+  const sa=getSA();
+  let sessInsIds;
+  if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length){
+    sessInsIds=new Set(sa.insegnamentiIds);
+  }else if(sa&&sa.lezioni&&sa.lezioni.length){
+    sessInsIds=new Set(sa.lezioni.map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));
+  }else{
+    sessInsIds=new Set();
+  }
+  const insegnamentiSessione=S.insegnamenti.filter(i=>sessInsIds.has(i.id));
   openModal(`<div class="modal-box">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <h3 style="color:${M};font-weight:800;font-size:15px">${d?"Modifica docente":"Nuovo docente"}</h3>
@@ -999,7 +1307,7 @@ function openDocModal(id){
           <span style="flex:1">Insegnamento</span>
           <span style="flex:0 0 90px;text-align:center;font-size:11px">Max ore</span>
         </div>
-        ${S.insegnamenti.map(ins=>{const v=vmap[ins.id]||{};return`<div class="ore-row">
+        ${insegnamentiSessione.map(ins=>{const v=vmap[ins.id]||{};return`<div class="ore-row">
           <input type="checkbox" class="d-ins-cb" value="${ins.id}" ${v.checked?'checked':''}
             style="width:auto;accent-color:${M};flex:0 0 auto" onchange="toggleOreInput(this)"/>
           <span style="flex:1;color:#222;font-size:12px">${escH(ins.nome)}</span>
@@ -1040,9 +1348,10 @@ function saveDoc(id){
   saveState();closeModal();renderApp();
 }
 function deleteDoc(id){
-  if(!confirm("Eliminare questo docente?"))return;
-  S.docenti=S.docenti.filter(d=>d.id!==id);
-  saveState();renderApp();showToast("Docente eliminato.");
+  openConfirm("Eliminare questo docente?",()=>{
+    S.docenti=S.docenti.filter(d=>d.id!==id);
+    saveState();renderApp();showToast("Docente eliminato.");
+  });
 }
 function openInsModal(id){
   const ins=id?S.insegnamenti.find(i=>i.id===id):null;
@@ -1073,9 +1382,10 @@ function saveIns(id){
   saveState();closeModal();renderApp();
 }
 function deleteIns(id){
-  if(!confirm("Eliminare questo insegnamento?"))return;
-  S.insegnamenti=S.insegnamenti.filter(i=>i.id!==id);
-  saveState();renderApp();showToast("Eliminato.");
+  openConfirm("Eliminare questo insegnamento?",()=>{
+    S.insegnamenti=S.insegnamenti.filter(i=>i.id!==id);
+    saveState();renderApp();showToast("Eliminato.");
+  });
 }
 
 /* ── Navbar + render principale ──────────────────────────────────── */
