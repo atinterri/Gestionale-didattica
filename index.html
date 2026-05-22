@@ -672,18 +672,32 @@ function renderDashboard(cont){
         <div style="font-size:48px;margin-bottom:12px">🔐</div>
         <h2 style="color:${MD};font-size:20px;font-weight:800;margin-bottom:6px">Area Presidente</h2>
         <p style="color:#555;font-size:13px;margin-bottom:22px">Inserisci la password per accedere</p>
-        <input type="password" id="pw-inp" placeholder="Password" style="margin-bottom:6px;text-align:center;font-size:15px" onkeydown="if(event.key==='Enter')checkPw()"/>
+        <input type="password" id="pw-inp" placeholder="Password" style="margin-bottom:6px;text-align:center;font-size:15px"/>
         <div id="pw-err" style="color:#e24b4a;font-size:12px;margin-bottom:12px;min-height:18px"></div>
-        <button class="btn btn-primary" style="width:100%;font-size:15px;padding:10px" onclick="checkPw()">Accedi</button>
-      </div></div>`;return;
+        <button class="btn btn-primary" style="width:100%;font-size:15px;padding:10px" id="pw-btn">Accedi</button>
+      </div></div>`;
+    // Usa addEventListener (non onclick) — funziona sempre con type="module"
+    setTimeout(()=>{
+      document.getElementById("pw-btn")?.addEventListener("click",checkPw);
+      document.getElementById("pw-inp")?.addEventListener("keydown",e=>{if(e.key==="Enter")checkPw();});
+    },0);
+    return;
   }
   const tabs=[["overview","📊 Panoramica"],["sessioni","📅 Sessioni"],["tabellone","🗓 Tabellone"],["anagrafiche","👥 Anagrafiche"]];
-  cont.innerHTML=`<div class="tab-nav">${tabs.map(([k,l])=>`<button class="${DTAB===k?"active":""}" onclick="setDTab('${k}')">${l}</button>`).join('')}</div><div id="dc"></div>`;
+  cont.innerHTML=`<div class="tab-nav" id="dash-tab-nav"></div><div id="dc"></div>`;
+  const nav=document.getElementById("dash-tab-nav");
+  tabs.forEach(([k,l])=>{const b=document.createElement("button");b.className=DTAB===k?"active":"";b.textContent=l;b.addEventListener("click",()=>{DTAB=k;renderApp();});nav.appendChild(b);});
   const dc=document.getElementById("dc");
   if(DTAB==="overview")renderOverview(dc);else if(DTAB==="sessioni")renderSessioniTab(dc);else if(DTAB==="tabellone")renderTabelloneTab(dc);else if(DTAB==="anagrafiche")renderAnagrafiche(dc);
 }
 function checkPw(){const v=(document.getElementById("pw-inp")||{}).value;if(v==="password"){AUTH=true;renderApp();}else{const e=document.getElementById("pw-err");if(e)e.textContent="Password errata.";}}
 function setDTab(t){DTAB=t;renderApp();}
+// Esponi tutte le funzioni usate in attributi onclick/onchange inline
+// (obbligatorio con type="module" che isola lo scope dalla finestra)
+window.checkPw=checkPw;
+window.setDTab=t=>{DTAB=t;renderApp();};
+window.setDFilt=f=>{DFILT=f;renderApp();};
+window.toggleOreInput=cb=>{const inp=cb.closest(".ore-row")?.querySelector(".d-ore-inp");if(inp)inp.style.display=cb.checked?"":"none";};
 
 function renderOverview(cont){
   const sa=getSA();const lz=sa?sa.lezioni||[]:[];
@@ -694,12 +708,7 @@ function renderOverview(cont){
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:22px">
     ${[["Lezioni inserite",lz.length,"#D4168C"],["Completi",completi,"#27ae60"],["Parziali",parziali,"#e67e22"],["Non iniziati",nonInit,"#e74c3c"]].map(([l,v,c])=>`<div class="kpi-card"><div style="font-size:11px;color:#555;margin-bottom:6px">${l}</div><div style="font-size:30px;font-weight:800;color:${c}">${v}</div></div>`).join('')}
   </div>
-  <div class="action-row">
-    <span style="font-size:13px;font-weight:700;color:#333">Filtra:</span>
-    <button class="filter-btn ${DFILT==="tutti"?"active":""}" onclick="setDFilt('tutti')">Tutti</button>
-    <button class="filter-btn ${DFILT==="completo"?"active":""}" onclick="setDFilt('completo')">✅ Completi</button>
-    <button class="filter-btn ${DFILT==="parziale"?"active":""}" onclick="setDFilt('parziale')">⚠️ Parziali</button>
-    <button class="filter-btn ${DFILT==="zero"?"active":""}" onclick="setDFilt('zero')">❌ Non iniziati</button>
+  <div class="action-row" id="ov-filters">
   </div>
   <div class="section-card" style="padding:0;overflow:hidden">
     <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -707,6 +716,14 @@ function renderOverview(cont){
       <tbody id="ov-tbody"></tbody>
     </table></div>`;
   const tbody=document.getElementById("ov-tbody");
+  // Costruisci filtri via DOM (evita onclick inline incompatibili con type=module)
+  const filtersRow=document.getElementById("ov-filters");
+  if(filtersRow){
+    const sp=document.createElement("span");sp.style.cssText="font-size:13px;font-weight:700;color:#333";sp.textContent="Filtra:";filtersRow.appendChild(sp);
+    [["tutti","Tutti"],["completo","✅ Completi"],["parziale","⚠️ Parziali"],["zero","❌ Non iniziati"]].forEach(([v,l])=>{
+      const b=document.createElement("button");b.className="filter-btn"+(DFILT===v?" active":"");b.textContent=l;b.addEventListener("click",()=>{DFILT=v;renderApp();});filtersRow.appendChild(b);
+    });
+  }
   filtered.forEach((ins,i)=>{
     const tr=tbody.insertRow();tr.style.cssText=`border-bottom:1px solid #fce8f4;background:${i%2===0?"#fff":"#fdf7fb"}`;
     tr.innerHTML=`<td style="padding:8px 12px;font-weight:700;color:#1a1a1a;font-size:11px">${escH(ins.nome)}</td><td style="padding:8px 12px;color:#333;font-size:10px">${escH(ins.docenti.join(", ")||"—")}</td><td style="padding:8px 12px" id="prev-${ins.id}"></td><td style="padding:8px 12px;font-weight:800;color:${ins.inserite>=ins.lezioniAssegnate?"#27ae60":"#1a1a1a"}">${ins.inserite}</td><td style="padding:8px 12px;color:${ins.mancanti>0?"#c0392b":"#27ae60"};font-weight:800">${ins.mancanti>0?ins.mancanti:"—"}</td>
@@ -893,10 +910,14 @@ function openDocModal(id){
     <div style="margin-bottom:6px"><label class="lbl">Insegnamenti abilitati e ore massime</label>
       <div style="max-height:280px;overflow-y:auto;border:1.5px solid #e0c8d8;border-radius:8px;background:#fafafa">
         <div class="ore-row" style="background:${ML};font-weight:700;color:#1a1a1a;border-radius:8px 8px 0 0"><span style="flex:0 0 24px"></span><span style="flex:1">Insegnamento</span><span style="flex:0 0 90px;text-align:center;font-size:11px">Max ore</span></div>
-        ${insS.map(ins=>{const v=vmap[ins.id]||{};return`<div class="ore-row"><input type="checkbox" class="d-ins-cb" value="${ins.id}" ${v.checked?'checked':''} style="width:auto;accent-color:${M};flex:0 0 auto" onchange="toggleOreInput(this)"/><span style="flex:1;color:#222;font-size:12px">${escH(ins.nome)}</span><input type="number" class="ore-inp d-ore-inp" data-ins="${ins.id}" value="${v.maxOre!=null?v.maxOre:''}" min="1" placeholder="∞" style="${v.checked?'':'display:none'}"/></div>`;}).join('')}
+        ${insS.map(ins=>{const v=vmap[ins.id]||{};return`<div class="ore-row"><input type="checkbox" class="d-ins-cb" value="${ins.id}" ${v.checked?'checked':''} style="width:auto;accent-color:${M};flex:0 0 auto"/><span style="flex:1;color:#222;font-size:12px">${escH(ins.nome)}</span><input type="number" class="ore-inp d-ore-inp" data-ins="${ins.id}" value="${v.maxOre!=null?v.maxOre:''}" min="1" placeholder="∞" style="${v.checked?'':'display:none'}"/></div>`;}).join('')}
       </div></div>
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px"><button id="dm-cancel" class="btn btn-ghost">Annulla</button><button id="dm-save" class="btn btn-primary">Salva</button></div></div>`);
   document.getElementById("dm-close").onclick=closeModal;document.getElementById("dm-cancel").onclick=closeModal;document.getElementById("dm-save").onclick=()=>saveDoc(id||"");
+  // Bind toggleOreInput via addEventListener (non onchange inline)
+  document.querySelectorAll(".d-ins-cb").forEach(cb=>{
+    cb.addEventListener("change",()=>{const inp=cb.closest(".ore-row")?.querySelector(".d-ore-inp");if(inp)inp.style.display=cb.checked?"":"none";});
+  });
 }
 function toggleOreInput(cb){const inp=cb.closest(".ore-row")?.querySelector(".d-ore-inp");if(inp)inp.style.display=cb.checked?"":"none";}
 async function saveDoc(id){
