@@ -457,26 +457,69 @@ function renderTabellone(cont,pm,fdoc){
       tdG.style.cssText=`padding:4px 3px;color:${isDom?"#ccc":"#777"};font-size:8.5px;text-align:center`;
       TIME_SLOTS.forEach(slot=>{
         const lez=slotMap[sk(iso,slot)];
-        let show=true;if(fdoc&&lez&&lez.docente!==fdoc)show=false;
-        const bg=lez&&show?colorFor(S.insegnamenti,lez.insegnamento):"#fff";
-        const td=tr.insertCell();
-        td.style.cssText=`padding:3px 4px;border:1px solid ${lez&&show?MM:"#f0e0ea"};`+
-          `background:${isDom?"#f5f5f5":bg};min-width:66px;max-width:84px;vertical-align:top;`+
-          `font-size:8.5px;height:36px;transition:background .12s`;
-        if(!isDom){
-          td.style.cursor="pointer";
-          if(!lez||!show) td.classList.add("slot-free");
-          td.addEventListener("mouseenter",()=>{if(!lez||!show)td.style.background=ML});
-          td.addEventListener("mouseleave",()=>{if(!lez||!show)td.style.background="#fff"});
-          td.addEventListener("click",()=>handleSlotClick(iso,slot,DAYS_IT[di],lez&&show?lez.id:null,pm));
-          td.title=lez&&show?`${lez.docente}\n${lez.insegnamento}\n${lez.titolo}`:"Slot libero";
+        // In vista docente (fdoc impostato, non pm):
+        //   - slot libero → cliccabile (verde al hover)
+        //   - slot del docente corrente → mostra lezione, cliccabile (per modifica)
+        //   - slot di altro docente → grigio, non cliccabile
+        // In vista presidente (pm) → tutto cliccabile, mostra filtro per fdoc
+        const isOwnSlot=!pm&&fdoc&&lez&&lez.docente===fdoc;
+        const isOthersSlot=!pm&&fdoc&&lez&&lez.docente!==fdoc;
+        const isFree=!lez;
+
+        let bg,borderColor,cursor,clickable;
+        if(isDom){
+          bg="#f5f5f5";borderColor="#f0e0ea";cursor="default";clickable=false;
+        }else if(pm){
+          // presidente: vista completa
+          const show=!fdoc||!lez||(lez.docente===fdoc);
+          bg=show&&lez?colorFor(S.insegnamenti,lez.insegnamento):"#fff";
+          borderColor=show&&lez?MM:"#f0e0ea";cursor="pointer";clickable=true;
+        }else if(isFree){
+          bg="#fff";borderColor="#f0e0ea";cursor="pointer";clickable=true;
+        }else if(isOwnSlot){
+          bg=colorFor(S.insegnamenti,lez.insegnamento);borderColor=MM;cursor="pointer";clickable=true;
+        }else{
+          // slot di altro docente: grigio, non interagibile
+          bg="#f0f0f0";borderColor="#e0e0e0";cursor="not-allowed";clickable=false;
         }
-        if(lez&&show){
+
+        const td=tr.insertCell();
+        td.style.cssText=`padding:3px 4px;border:1px solid ${borderColor};background:${bg};`+
+          `min-width:66px;max-width:84px;vertical-align:top;font-size:8.5px;height:36px;`+
+          `transition:background .12s;cursor:${cursor}`;
+
+        if(clickable&&!isDom){
+          if(isFree||(!pm&&isOwnSlot)){
+            td.classList.add("slot-free");
+          }
+          td.addEventListener("mouseenter",()=>{if(isFree)td.style.background=ML});
+          td.addEventListener("mouseleave",()=>{if(isFree)td.style.background="#fff"});
+          const lezId=pm?(lez?.id||null):(isOwnSlot?lez.id:null);
+          td.addEventListener("click",()=>handleSlotClick(iso,slot,DAYS_IT[di],
+            isFree?null:(pm?lez?.id:isOwnSlot?lez.id:null),pm));
+          td.title=isFree?"Slot libero":(lez?`${lez.docente}\n${lez.insegnamento}\n${lez.titolo}`:"");
+        }else if(!clickable&&!isDom&&lez){
+          td.title=`Slot occupato da ${lez.docente}`;
+        }
+
+        // Contenuto cella
+        if(pm&&lez&&(!fdoc||lez.docente===fdoc)){
           const d1=document.createElement("div");d1.textContent=lez.docente.split(' ').pop();
           d1.style.cssText=`font-weight:800;color:${MD};font-size:7.5px;line-height:1.2;overflow:hidden;max-height:18px`;
           const d2=document.createElement("div");d2.textContent=lez.insegnamento.slice(0,22);
           d2.style.cssText=`color:#333;font-size:7.5px;line-height:1.2;overflow:hidden;max-height:14px`;
           td.appendChild(d1);td.appendChild(d2);
+        }else if(!pm&&isOwnSlot){
+          const d1=document.createElement("div");d1.textContent=lez.titolo.slice(0,20)||lez.insegnamento.slice(0,20);
+          d1.style.cssText=`font-weight:800;color:${MD};font-size:7.5px;line-height:1.2;overflow:hidden;max-height:18px`;
+          const d2=document.createElement("div");d2.textContent=lez.insegnamento.slice(0,22);
+          d2.style.cssText=`color:#333;font-size:7.5px;line-height:1.2;overflow:hidden;max-height:14px`;
+          td.appendChild(d1);td.appendChild(d2);
+        }else if(!pm&&isOthersSlot){
+          // piccolo indicatore grigio per slot di altri
+          const dot=document.createElement("div");dot.textContent="●";
+          dot.style.cssText=`color:#ccc;font-size:10px;text-align:center;margin-top:8px`;
+          td.appendChild(dot);
         }
       });
     });
@@ -644,14 +687,25 @@ function renderVistaDocente(cont){
 
   const hint=document.createElement("p");
   hint.style.cssText="font-size:12px;color:#555;margin-bottom:10px";
-  hint.textContent=DOCSEL&&INSSEL&&sessOk
-    ?"Clicca su una cella libera per inserire una lezione."
-    :"Seleziona nome e insegnamento per iniziare.";
-  wrap.appendChild(hint);
 
   const tbDiv=document.createElement("div");wrap.appendChild(tbDiv);
   cont.innerHTML="";cont.appendChild(wrap);
-  if(sessOk)renderTabellone(tbDiv,false,DOCSEL||null);
+
+  // Il tabellone si mostra solo dopo che il docente ha selezionato nome e insegnamento
+  if(sessOk&&DOCSEL&&INSSEL){
+    hint.textContent="Clicca su una cella libera per inserire una lezione. Le celle colorate mostrano le tue lezioni già inserite.";
+    wrap.insertBefore(hint,tbDiv);
+    // Passa DOCSEL come filtro: mostra solo le lezioni del docente selezionato + slot liberi
+    renderTabellone(tbDiv,false,DOCSEL);
+  }else if(sessOk&&DOCSEL&&!INSSEL){
+    hint.textContent="Seleziona l'insegnamento per visualizzare il calendario.";
+    wrap.insertBefore(hint,tbDiv);
+  }else if(!sessOk){
+    // messaggio già mostrato sopra (warn box)
+  }else{
+    hint.textContent="Seleziona il tuo nome e l'insegnamento per visualizzare il calendario della sessione attiva.";
+    wrap.insertBefore(hint,tbDiv);
+  }
 }
 
 function cercaSlot(){
