@@ -514,17 +514,40 @@ function renderVistaDocente(cont){
   const insDispo=DOCSEL?insForDoc(DOCSEL):S.insegnamenti;
   const wrap=document.createElement("div");
 
-  // Docenti nel menu: se la sessione ha un import CSV usa solo quelli,
-  // altrimenti mostra tutti i docenti registrati (aggiunti manualmente dal presidente).
-  let docentiSessione;
-  if(sa&&sa.docentiIds&&sa.docentiIds.length){
-    // Sessione con import CSV: mostra solo i docenti di quella sessione
-    const visDocIds=new Set(sa.docentiIds);
-    docentiSessione=sortN(S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome));
-  }else{
-    // Sessione senza import (creata manualmente): mostra tutti i docenti registrati
-    docentiSessione=sortN(S.docenti.map(d=>d.nome));
+  // Funzione helper: il docente ha ancora ore da inserire nella sessione attiva?
+  function docenteHaOreDisponibili(docNome){
+    const d=S.docenti.find(x=>x.nome===docNome);
+    if(!d)return false;
+    // Se il docente non ha vincoli su insegnamenti specifici, controlla tutti gli insegnamenti
+    // disponibili per lui nella sessione e verifica se almeno uno ha ore globali residue
+    const insDisp=insForDoc(docNome);
+    for(const ins of insDisp){
+      const globaleUsato=countLZ(ins.nome);
+      if(globaleUsato>=ins.lezioniAssegnate)continue; // insegnamento globalmente esaurito
+      // Controlla il limite personale del docente su questo insegnamento
+      const maxOreDoc=maxOreForDocIns(docNome,ins.nome);
+      if(maxOreDoc!=null){
+        const oreDocIns_=oreDocIns(docNome,ins.nome);
+        if(oreDocIns_<maxOreDoc)return true; // ha ancora ore personali disponibili
+      }else{
+        return true; // nessun limite personale, e ci sono ore globali residue
+      }
+    }
+    return false;
   }
+
+  // Docenti nel menu: quelli della sessione attiva con ore ancora da assegnare
+  let docentiPool;
+  if(sa&&sa.docentiIds&&sa.docentiIds.length){
+    // Sessione con import CSV: parte dai docentiIds della sessione
+    const visDocIds=new Set(sa.docentiIds);
+    docentiPool=S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome);
+  }else{
+    // Sessione senza import: tutti i docenti registrati
+    docentiPool=S.docenti.map(d=>d.nome);
+  }
+  // Filtra: solo chi ha ancora ore disponibili
+  const docentiSessione=sortN(docentiPool.filter(n=>docenteHaOreDisponibili(n)));
 
   // Se DOCSEL non è presente nella lista corrente, resettalo
   if(DOCSEL&&!docentiSessione.includes(DOCSEL)){DOCSEL="";INSSEL="";}
@@ -540,7 +563,7 @@ function renderVistaDocente(cont){
   sd.innerHTML=`<option value="">— Seleziona docente —</option>`+
     docentiSessione.map(n=>`<option value="${escA(n)}"${DOCSEL===n?' selected':''}>${escH(n)}</option>`).join('');
   if(!docentiSessione.length){
-    sd.innerHTML=`<option value="" disabled>Nessun docente nella sessione attiva</option>`;
+    sd.innerHTML=`<option value="" disabled>Nessun docente con ore disponibili</option>`;
   }
   sd.addEventListener("change",e=>{DOCSEL=e.target.value;INSSEL="";renderApp()});
   sdW.appendChild(sd);bar.appendChild(sdW);
