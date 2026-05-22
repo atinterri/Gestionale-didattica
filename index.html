@@ -14,6 +14,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#fdf7fb;min-height:1
   padding:12px 20px;font-weight:700;font-size:14px;z-index:9999;
   box-shadow:0 4px 20px rgba(212,22,140,.35);animation:slideIn .2s ease;pointer-events:none}
 .toast.err{background:#c0392b}
+.toast.ok{background:#27ae60}
 @keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;
   display:flex;align-items:center;justify-content:center;padding:16px}
@@ -30,7 +31,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#fdf7fb;min-height:1
 .btn-info{background:#2980b9;color:#fff}.btn-info:hover{background:#1a5f7a}
 .btn-warn{background:#e67e22;color:#fff}.btn-warn:hover{background:#ca6f1e}
 .btn-teal{background:#16a085;color:#fff}.btn-teal:hover{background:#117a60}
-.btn-violet{background:#8e44ad;color:#fff}.btn-violet:hover{background:#6c3483}
 .btn-sm{padding:6px 13px;font-size:12px}
 .btn-xs{padding:4px 9px;font-size:11px}
 .kpi-card{background:#fff;border:1px solid #f0e0ea;border-radius:10px;padding:14px 16px}
@@ -58,18 +58,29 @@ label.lbl{font-size:12px;color:#444;display:block;margin-bottom:5px;font-weight:
 .ore-row{display:flex;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid #f5edf5;font-size:12px;color:#222}
 .ore-row:last-child{border-bottom:none}
 .ore-inp{width:70px!important;padding:4px 8px!important;font-size:12px!important}
-.sync-banner{background:linear-gradient(135deg,#8e44ad,#D4168C);color:#fff;border-radius:10px;
-  padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.conn-bar{position:fixed;top:56px;left:0;right:0;height:3px;background:#27ae60;z-index:200;transition:background .3s}
+.conn-bar.offline{background:#e24b4a}
+.conn-bar.syncing{background:#e67e22;animation:pulse .8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.fb-status{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700}
+.fb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 </style>
 </head>
 <body>
+<div id="conn-bar" class="conn-bar"></div>
 <div id="root"></div>
 <div id="toast-container"></div>
 <div id="modal-container"></div>
-<script>
-/* ═══════════════════════════════════════════════════════════════════
-   GESTIONALE DIDATTICA INTERATTIVA — v7
-   ═══════════════════════════════════════════════════════════════════ */
+
+<!-- Firebase SDK -->
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getDatabase,ref,set,get,onValue,off,push,remove,update,serverTimestamp}
+  from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+/* ═══════════════════════════════════════════════════════════════
+   GESTIONALE DIDATTICA INTERATTIVA — v8 Firebase
+   ═══════════════════════════════════════════════════════════════ */
 const M="#D4168C",ML="#F7D6EE",MD="#9A0D65",MM="#EAA0D0";
 const TIME_SLOTS=["07:00-08:00","08:00-09:00","09:00-10:00","10:00-11:00","11:00-12:00",
   "12:00-13:00","13:00-14:00","14:00-15:00","15:00-16:00","16:00-17:00",
@@ -78,6 +89,36 @@ const DAYS_IT=["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato",
 const ICOL=["#F7D6EE","#D6EEF7","#D6F7E8","#F7EED6","#EED6F7","#F7D6D6","#D6D6F7","#EEF7D6",
   "#F7F0D6","#D6F7F7","#F0D6F7","#D6F7D6","#F7D6F0","#D6EAF7","#F7E8D6","#E8F7D6",
   "#F7D6E8","#D6F0F7","#F7F7D6","#E0D6F7","#D6F7EA","#F7D9D6","#D6F7F0","#F5F7D6","#D6DCF7"];
+
+/* ── Firebase init ───────────────────────────────────────────── */
+const firebaseConfig={
+  apiKey:"AIzaSyBrQztYdYv8EjTqj9Y0-Pdxqn9LgPYoFqA",
+  authDomain:"gestionale-didattica.firebaseapp.com",
+  projectId:"gestionale-didattica",
+  storageBucket:"gestionale-didattica.firebasestorage.app",
+  messagingSenderId:"202091754523",
+  appId:"1:202091754523:web:9e18d26c0f972a03fa34be",
+  databaseURL:"https://gestionale-didattica-default-rtdb.europe-west1.firebasedatabase.app"
+};
+const app=initializeApp(firebaseConfig);
+const db=getDatabase(app);
+const ROOT="gestionale";
+
+/* ── Stato locale (cache) ────────────────────────────────────── */
+let S={insegnamenti:[],docenti:[],sessioni:[],sessioneAttiva:"",annoAccademico:"2025-2026",corsoDiLaurea:"Scienze Motorie L-22"};
+let ROLE="docente",AUTH=false,DOCSEL="",INSSEL="",DTAB="overview",DFILT="tutti",TF_DOC="";
+let FB_READY=false; // true dopo il primo caricamento da Firebase
+let FB_LISTENER=null; // listener realtime attivo
+
+/* ── Connessione / stato online ──────────────────────────────── */
+let IS_ONLINE=navigator.onLine;
+function setConnBar(state){
+  const bar=document.getElementById("conn-bar");
+  if(!bar)return;
+  bar.className="conn-bar"+(state==="offline"?" offline":state==="syncing"?" syncing":"");
+}
+window.addEventListener("online",()=>{IS_ONLINE=true;setConnBar("ok");showToast("Connessione ripristinata","ok");});
+window.addEventListener("offline",()=>{IS_ONLINE=false;setConnBar("offline");showToast("Offline — le modifiche saranno sincronizzate alla riconnessione","err");});
 
 /* ── Utilità ─────────────────────────────────────────────────── */
 function uid(){return'x'+Math.random().toString(36).slice(2)+Date.now().toString(36)}
@@ -94,27 +135,132 @@ function generateWeeks(start,end){
   while(d<=endD){const w=[];for(let i=0;i<7;i++){const dd=new Date(d);dd.setDate(dd.getDate()+i);if(dd<=endD)w.push(dd)}weeks.push(w);d.setDate(d.getDate()+7)}
   return weeks;
 }
-
-/* ── Stato ───────────────────────────────────────────────────── */
-const LS_KEY="gestionale_didattica_v7";
-function emptyState(){
-  return{insegnamenti:[],docenti:[],sessioni:[],sessioneAttiva:"",annoAccademico:"2025-2026",corsoDiLaurea:"Scienze Motorie L-22"};
-}
-function loadState(){
-  try{const r=localStorage.getItem(LS_KEY);if(r){const p=JSON.parse(r);return{insegnamenti:p.insegnamenti||[],docenti:p.docenti||[],sessioni:p.sessioni||[],sessioneAttiva:p.sessioneAttiva||"",annoAccademico:p.annoAccademico||"2025-2026",corsoDiLaurea:p.corsoDiLaurea||"Scienze Motorie L-22"};}}catch{}
-  return emptyState();
-}
-function saveState(){
-  try{localStorage.setItem(LS_KEY,JSON.stringify({insegnamenti:S.insegnamenti,docenti:S.docenti,sessioni:S.sessioni,sessioneAttiva:S.sessioneAttiva,annoAccademico:S.annoAccademico,corsoDiLaurea:S.corsoDiLaurea}));}catch{}
+function triggerDownload(content,filename,mime){
+  const blob=new Blob([content],{type:mime});const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;a.style.display="none";
+  document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},300);
 }
 
-let S=loadState();
-let ROLE="docente",AUTH=false,DOCSEL="",INSSEL="",DTAB="overview",DFILT="tutti",TF_DOC="";
+/* ── Firebase R/W ────────────────────────────────────────────── */
+// Serializza lo stato per Firebase (rimuove undefined, trasforma arrays in objects dove serve)
+function stateToFB(s){
+  return{
+    insegnamenti:s.insegnamenti||[],
+    docenti:s.docenti||[],
+    sessioni:s.sessioni||[],
+    sessioneAttiva:s.sessioneAttiva||"",
+    annoAccademico:s.annoAccademico||"2025-2026",
+    corsoDiLaurea:s.corsoDiLaurea||"Scienze Motorie L-22"
+  };
+}
+function fbToState(data){
+  if(!data)return null;
+  return{
+    insegnamenti:Array.isArray(data.insegnamenti)?data.insegnamenti:(data.insegnamenti?Object.values(data.insegnamenti):[]),
+    docenti:Array.isArray(data.docenti)?data.docenti:(data.docenti?Object.values(data.docenti):[]),
+    sessioni:Array.isArray(data.sessioni)?data.sessioni:(data.sessioni?Object.values(data.sessioni):[]),
+    sessioneAttiva:data.sessioneAttiva||"",
+    annoAccademico:data.annoAccademico||"2025-2026",
+    corsoDiLaurea:data.corsoDiLaurea||"Scienze Motorie L-22"
+  };
+}
 
-// Assicura che sessioneAttiva punti a una sessione esistente
-(function(){if(S.sessioni.length&&!S.sessioni.find(s=>s.id===S.sessioneAttiva))S.sessioneAttiva=S.sessioni[0].id;})();
+// Scrive tutto lo stato su Firebase
+async function saveToFB(){
+  setConnBar("syncing");
+  try{
+    await set(ref(db,ROOT),stateToFB(S));
+    setConnBar("ok");
+  }catch(e){
+    setConnBar("offline");
+    showToast("Errore salvataggio: "+e.message,"err");
+  }
+}
 
-/* ── Selettori ───────────────────────────────────────────────── */
+// Scrive SOLO una singola sessione (operazione più veloce per inserimento lezioni)
+async function saveSessToFB(sess){
+  setConnBar("syncing");
+  try{
+    // Trova indice della sessione
+    const idx=S.sessioni.findIndex(s=>s.id===sess.id);
+    if(idx>=0){
+      await set(ref(db,`${ROOT}/sessioni/${idx}`),sess);
+    }
+    setConnBar("ok");
+  }catch(e){
+    setConnBar("offline");
+    // Fallback: salva tutto
+    try{await saveToFB();}catch{}
+  }
+}
+
+// Avvia listener realtime: si aggiorna automaticamente quando altri utenti modificano
+function startRealtimeListener(){
+  if(FB_LISTENER)return;
+  const r=ref(db,ROOT);
+  FB_LISTENER=onValue(r,snap=>{
+    const data=snap.val();
+    if(!data){
+      // Database vuoto: mostra schermata setup
+      FB_READY=true;
+      showSetupScreen();
+      return;
+    }
+    const newState=fbToState(data);
+    if(!newState)return;
+    // Aggiorna solo se i dati sono effettivamente cambiati (evita loop)
+    const oldJSON=JSON.stringify(stateToFB(S));
+    const newJSON=JSON.stringify(stateToFB(newState));
+    if(oldJSON!==newJSON){
+      S=newState;
+      // Mantieni selezioni UI valide
+      if(DOCSEL&&!S.docenti.find(d=>d.nome===DOCSEL)){DOCSEL="";INSSEL="";}
+      if(INSSEL&&!S.insegnamenti.find(i=>i.nome===INSSEL))INSSEL="";
+      if(S.sessioni.length&&!S.sessioni.find(s=>s.id===S.sessioneAttiva))S.sessioneAttiva=S.sessioni[0].id;
+    }
+    if(!FB_READY){
+      FB_READY=true;
+      renderApp();
+    }else{
+      // Aggiornamento in tempo reale: re-render silenzioso
+      renderApp();
+    }
+  },err=>{
+    setConnBar("offline");
+    FB_READY=true;
+    showToast("Errore connessione Firebase: "+err.message,"err");
+    renderApp();
+  });
+}
+
+/* ── UI helpers ──────────────────────────────────────────────── */
+function showToast(msg,type){
+  const el=document.createElement("div");
+  el.className="toast"+(type==="err"?" err":type==="ok"?" ok":"");
+  el.textContent=msg;
+  document.getElementById("toast-container").appendChild(el);
+  setTimeout(()=>el.remove(),3500);
+}
+function showErr(msg){showToast(msg,"err");}
+function openModal(html){
+  document.getElementById("modal-container").innerHTML=`<div class="modal-overlay" id="moverlay">${html}</div>`;
+  document.getElementById("moverlay").addEventListener("click",e=>{if(e.target.id==="moverlay")closeModal();});
+}
+function closeModal(){document.getElementById("modal-container").innerHTML="";}
+function openConfirm(msg,onYes,yesLabel,yesClass){
+  const cid=uid();(window._confirmCb=window._confirmCb||{})[cid]=onYes;
+  openModal(`<div class="modal-box" style="max-width:400px">
+    <div style="font-size:22px;text-align:center;margin-bottom:14px">⚠️</div>
+    <p style="font-size:14px;color:#222;text-align:center;margin-bottom:22px;line-height:1.5">${escH(msg)}</p>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button id="conf-no" class="btn btn-ghost">Annulla</button>
+      <button id="conf-yes" class="btn ${yesClass||'btn-danger'}">${yesLabel||'Sì, elimina'}</button>
+    </div></div>`);
+  document.getElementById("conf-no").onclick=closeModal;
+  document.getElementById("conf-yes").onclick=()=>{closeModal();const cb=(window._confirmCb||{})[cid];if(cb)cb();};
+}
+
+/* ── Selettori dati ──────────────────────────────────────────── */
 function getSA(){if(!S.sessioni.length)return null;return S.sessioni.find(s=>s.id===S.sessioneAttiva)||S.sessioni[0];}
 function getLZ(){const sa=getSA();return sa?sa.lezioni:[];}
 function countLZ(nome){const sa=getSA();return sa?sa.lezioni.filter(l=>l.insegnamento===nome).length:0;}
@@ -140,103 +286,42 @@ function checkSpazio(docNome,insNome,nOre){
   return null;
 }
 
-/* ── UI helpers ──────────────────────────────────────────────── */
-function showToast(msg,isErr){const el=document.createElement("div");el.className="toast"+(isErr?" err":"");el.textContent=msg;document.getElementById("toast-container").appendChild(el);setTimeout(()=>el.remove(),3500);}
-function showErr(msg){showToast(msg,true);}
-function openModal(html){document.getElementById("modal-container").innerHTML=`<div class="modal-overlay" id="moverlay">${html}</div>`;document.getElementById("moverlay").addEventListener("click",e=>{if(e.target.id==="moverlay")closeModal();});}
-function closeModal(){document.getElementById("modal-container").innerHTML="";}
-function openConfirm(msg,onYes,yesLabel,yesClass){
-  const cid=uid();(window._confirmCb=window._confirmCb||{})[cid]=onYes;
-  openModal(`<div class="modal-box" style="max-width:400px"><div style="font-size:22px;text-align:center;margin-bottom:14px">⚠️</div>
-    <p style="font-size:14px;color:#222;text-align:center;margin-bottom:22px;line-height:1.5">${escH(msg)}</p>
-    <div style="display:flex;gap:10px;justify-content:center">
-      <button id="conf-no" class="btn btn-ghost">Annulla</button>
-      <button id="conf-yes" class="btn ${yesClass||'btn-danger'}">${yesLabel||'Sì, elimina'}</button>
-    </div></div>`);
-  document.getElementById("conf-no").onclick=closeModal;
-  document.getElementById("conf-yes").onclick=()=>{closeModal();const cb=(window._confirmCb||{})[cid];if(cb)cb();};
-}
-function triggerDownload(content,filename,mime){
-  const blob=new Blob([content],{type:mime});const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");a.href=url;a.download=filename;a.style.display="none";
-  document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},300);
-}
-
-/* ══════════════════════════════════════════════════════════════
-   SINCRONIZZAZIONE DATI — Export/Import JSON stato
-   Il presidente esporta lo stato completo come file JSON.
-   I docenti importano il file JSON nel loro browser.
-   ══════════════════════════════════════════════════════════════ */
-function exportStato(){
-  const payload=JSON.stringify({insegnamenti:S.insegnamenti,docenti:S.docenti,sessioni:S.sessioni,sessioneAttiva:S.sessioneAttiva,annoAccademico:S.annoAccademico,corsoDiLaurea:S.corsoDiLaurea,_v:7,_ts:Date.now()});
-  const nome=S.corsoDiLaurea.replace(/[^a-zA-Z0-9]/g,'_');
-  triggerDownload(payload,`stato_${nome}_${new Date().toISOString().slice(0,10)}.json`,"application/json;charset=utf-8");
-  showToast("Stato esportato! Condividi il file con i docenti.");
-}
-
-function importStato(file,onDone){
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      const parsed=JSON.parse(e.target.result);
-      if(!parsed.sessioni||!Array.isArray(parsed.sessioni))throw new Error("Formato non valido");
-      S.insegnamenti=parsed.insegnamenti||[];
-      S.docenti=parsed.docenti||[];
-      S.sessioni=parsed.sessioni||[];
-      S.sessioneAttiva=parsed.sessioneAttiva||S.sessioni[0]?.id||"";
-      S.annoAccademico=parsed.annoAccademico||"2025-2026";
-      S.corsoDiLaurea=parsed.corsoDiLaurea||"Scienze Motorie L-22";
-      DOCSEL="";INSSEL="";
-      saveState();
-      if(onDone)onDone(true);
-    }catch(err){if(onDone)onDone(false,err.message);}
-  };
-  reader.readAsText(file,'UTF-8');
-}
-
-/* ── Schermata di benvenuto per nuovi utenti ─────────────────── */
-function showWelcomeScreen(){
+/* ── Schermata setup iniziale (DB vuoto) ─────────────────────── */
+function showSetupScreen(){
   document.getElementById("root").innerHTML=`
-  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fdf7fb 0%,#F7D6EE 100%);padding:20px">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fdf7fb,#F7D6EE);padding:20px">
     <div style="background:#fff;border-radius:20px;padding:40px 36px;max-width:500px;width:100%;box-shadow:0 12px 48px rgba(212,22,140,.18);text-align:center">
       <div style="font-size:52px;margin-bottom:12px">🎓</div>
       <h1 style="color:${MD};font-size:22px;font-weight:800;margin-bottom:8px">Gestionale Didattica Interattiva</h1>
       <p style="color:#666;font-size:14px;margin-bottom:28px;line-height:1.6">
-        Nessun dato trovato nel tuo browser.<br>
-        Importa il file <b>stato_*.json</b> fornito dal Presidente del CdS, oppure accedi come Presidente per configurare il sistema.
+        Il database è vuoto.<br>Accedi come <b>Presidente</b> per configurare il sistema.<br>
+        I docenti potranno accedere automaticamente dopo la configurazione.
       </p>
-      <div style="display:flex;flex-direction:column;gap:12px">
-        <div style="background:${ML};border-radius:12px;padding:18px">
-          <div style="font-weight:800;color:${MD};margin-bottom:8px;font-size:14px">📥 Sono un docente</div>
-          <p style="font-size:12px;color:#555;margin-bottom:12px">Carica il file JSON ricevuto dal Presidente</p>
-          <input type="file" id="welcome-file" accept=".json" style="margin-bottom:10px"/>
-          <button class="btn btn-primary" style="width:100%" id="welcome-import-btn">Carica e accedi</button>
-        </div>
-        <div style="border-top:1px solid #f0e0ea;padding-top:16px">
-          <div style="font-weight:800;color:#555;margin-bottom:8px;font-size:14px">🔐 Sono il Presidente</div>
-          <button class="btn btn-ghost" style="width:100%" id="welcome-pres-btn">Accedi come Presidente (configura il sistema)</button>
-        </div>
-      </div>
+      <button class="btn btn-primary" style="width:100%;font-size:15px;padding:12px" id="setup-pres-btn">
+        🔐 Accedi come Presidente
+      </button>
     </div>
   </div>`;
-  document.getElementById("welcome-import-btn").addEventListener("click",()=>{
-    const f=document.getElementById("welcome-file").files[0];
-    if(!f){showErr("Seleziona prima un file JSON");return;}
-    importStato(f,(ok,err)=>{
-      if(ok){renderApp();showToast("Dati importati! Benvenuto.");}
-      else{showErr("Errore importazione: "+(err||"file non valido"));}
-    });
-  });
-  document.getElementById("welcome-pres-btn").addEventListener("click",()=>{
-    // Crea uno stato vuoto, accedi come presidente
-    ROLE="presidente";AUTH=false;
-    renderApp();
+  document.getElementById("setup-pres-btn").addEventListener("click",()=>{
+    ROLE="presidente";AUTH=false;renderApp();
   });
 }
 
-/* ── Export ICS ──────────────────────────────────────────────── */
+/* ── Schermata loading ───────────────────────────────────────── */
+function showLoadingScreen(){
+  document.getElementById("root").innerHTML=`
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fdf7fb,#F7D6EE)">
+    <div style="text-align:center">
+      <div style="font-size:52px;margin-bottom:16px;animation:pulse 1s infinite">🎓</div>
+      <div style="color:${MD};font-size:16px;font-weight:800">Connessione al database in corso…</div>
+      <div style="color:#888;font-size:13px;margin-top:8px">Caricamento dati condivisi</div>
+    </div>
+  </div>`;
+}
+
+/* ── Export CSV ──────────────────────────────────────────────── */
 function exportICS(docNome){
-  const sa=getSA();if(!sa){showErr("Nessuna sessione attiva");return;}
+  const sa=getSA();if(!sa)return;
   const lzDoc=sa.lezioni.filter(l=>l.docente===docNome);
   if(!lzDoc.length){showErr("Nessuna lezione trovata per "+docNome);return;}
   const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Gestionale Didattica//IT","CALSCALE:GREGORIAN","METHOD:PUBLISH","X-WR-CALNAME:Lezioni "+docNome,"X-WR-TIMEZONE:Europe/Rome"];
@@ -251,16 +336,12 @@ function exportICS(docNome){
   triggerDownload(lines.join("\r\n"),"lezioni_"+docNome.replace(/[^a-zA-Z0-9]/g,'_')+".ics","text/calendar;charset=utf-8");
   showToast(lzDoc.length+" lezioni esportate!");
 }
-
-/* ── Export CSV docenti ──────────────────────────────────────── */
 function exportDocentiCSV(){
   const sa=getSA();const lz=sa?sa.lezioni:[];
   let visInsIds,visDocIds;
   if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length){visInsIds=new Set(sa.insegnamentiIds);visDocIds=new Set(sa.docentiIds||[]);}
-  else if(sa&&lz.length){
-    visInsIds=new Set(lz.map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));
-    visDocIds=new Set(lz.map(l=>{const d=S.docenti.find(x=>x.nome===l.docente);return d?d.id:null}).filter(Boolean));
-  }else{visInsIds=new Set();visDocIds=new Set();}
+  else if(lz.length){visInsIds=new Set(lz.map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));visDocIds=new Set(lz.map(l=>{const d=S.docenti.find(x=>x.nome===l.docente);return d?d.id:null}).filter(Boolean));}
+  else{visInsIds=new Set();visDocIds=new Set();}
   const insOrd=sortN(S.insegnamenti.filter(i=>visInsIds.has(i.id)).map(i=>i.nome));
   const docOrd=sortN(S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome));
   const rows=[["Docente","Totale ore",...insOrd]];
@@ -268,7 +349,6 @@ function exportDocentiCSV(){
   triggerDownload("\uFEFF"+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n"),"ore_docenti.csv","text/csv;charset=utf-8");
   showToast("CSV esportato!");
 }
-
 function exportSessCSV(id){
   const sess=S.sessioni.find(s=>s.id===id);if(!sess)return;
   const rows=[["Data","Giorno","Fascia Oraria","Docente","Insegnamento","Titolo"]];
@@ -321,10 +401,11 @@ function openSlotModal(iso,slot,dayName,lezId,pm){
   document.getElementById("btn-cs").onclick=closeModal;
   document.getElementById("btn-cancel-slot").onclick=closeModal;
   const cb=document.getElementById("m-cc");if(cb)cb.addEventListener("change",e=>{document.getElementById("m-ccbox").style.display=e.target.checked?"block":"none";});
-  if(lez){const db=document.createElement("button");db.className="btn btn-danger btn-sm";db.textContent="🗑 Elimina";db.onclick=()=>deleteLZ(lez.id);document.getElementById("btn-del-slot").appendChild(db);}
+  if(lez){const db2=document.createElement("button");db2.className="btn btn-danger btn-sm";db2.textContent="🗑 Elimina";db2.onclick=()=>deleteLZ(lez.id);document.getElementById("btn-del-slot").appendChild(db2);}
   document.getElementById("btn-confirm-slot").onclick=()=>saveSlot(ctxId);
 }
-function saveSlot(ctxId){
+
+async function saveSlot(ctxId){
   const ctx=(window._slotCtx||{})[ctxId];if(!ctx)return;
   const{iso,slot,dayName,lezId,pm,ns}=ctx;
   const titolo=(document.getElementById("m-titolo")||{}).value?.trim();
@@ -338,16 +419,40 @@ function saveSlot(ctxId){
   const nuove=[{id:uid(),data:iso,fasciaOraria:slot,docente:doc,insegnamento:insNome,titolo,giornoSettimana:dayName}];
   if(addC&&ns)nuove.push({id:uid(),data:iso,fasciaOraria:ns,docente:doc,insegnamento:insNome,titolo:t2,giornoSettimana:dayName});
   const sa=getSA();if(!sa)return;
-  let lz=[...sa.lezioni];if(lezId)lz=lz.filter(l=>l.id!==lezId);
-  nuove.forEach(n=>{if(!lz.find(x=>x.data===n.data&&x.fasciaOraria===n.fasciaOraria))lz.push(n);});
-  S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:lz}:s);
-  saveState();closeModal();renderApp();showToast(lezId?"Lezione aggiornata!":"Lezione inserita!");
+  // Rileggi la sessione da Firebase per evitare race condition
+  try{
+    const snap=await get(ref(db,`${ROOT}/sessioni`));
+    const sessioni=snap.val();
+    if(sessioni){
+      const arr=Array.isArray(sessioni)?sessioni:Object.values(sessioni);
+      const liveS=arr.find(s=>s.id===sa.id);
+      if(liveS){
+        let lz=[...(liveS.lezioni||[])];
+        if(lezId)lz=lz.filter(l=>l.id!==lezId);
+        // Controlla conflitti in tempo reale
+        const conflitti=nuove.filter(n=>lz.find(x=>x.data===n.data&&x.fasciaOraria===n.fasciaOraria));
+        if(conflitti.length>0){showErr("Slot già occupato da un altro docente. Ricarica e scegli un altro slot.");closeModal();return;}
+        nuove.forEach(n=>lz.push(n));
+        // Aggiorna localmente
+        S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:lz}:s);
+        // Salva su Firebase
+        const idx=S.sessioni.findIndex(s=>s.id===sa.id);
+        await set(ref(db,`${ROOT}/sessioni/${idx}`),{...sa,lezioni:lz});
+        closeModal();showToast(lezId?"Lezione aggiornata!":"Lezione inserita!");
+        return;
+      }
+    }
+  }catch(e){showErr("Errore di connessione. Riprova.");}
 }
-function deleteLZ(lezId){
-  openConfirm("Eliminare questa lezione?",()=>{
+
+async function deleteLZ(lezId){
+  openConfirm("Eliminare questa lezione?",async()=>{
     const sa=getSA();if(!sa)return;
-    S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:s.lezioni.filter(l=>l.id!==lezId)}:s);
-    saveState();closeModal();renderApp();showToast("Lezione eliminata.");
+    const lz=sa.lezioni.filter(l=>l.id!==lezId);
+    S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:lz}:s);
+    closeModal();
+    await saveToFB();
+    showToast("Lezione eliminata.");
   });
 }
 
@@ -355,7 +460,7 @@ function deleteLZ(lezId){
 function renderTabellone(cont,pm,fdoc){
   const sess=getSA();
   if(!sess){cont.innerHTML=`<p style="color:#888;padding:20px">Nessuna sessione.</p>`;return;}
-  const lz=sess.lezioni;const slotMap=buildSlotMap(lz);const weeks=generateWeeks(sess.dataInizio,sess.dataFine);
+  const lz=sess.lezioni||[];const slotMap=buildSlotMap(lz);const weeks=generateWeeks(sess.dataInizio,sess.dataFine);
   const wrap=document.createElement("div");wrap.style.overflowX="auto";
   const table=document.createElement("table");table.style.cssText="border-collapse:collapse;min-width:900px";
   const thead=table.createTHead();const hr=thead.insertRow();
@@ -373,40 +478,43 @@ function renderTabellone(cont,pm,fdoc){
     const tdG=tr.insertCell();tdG.textContent=DAYS_IT[di].slice(0,3);tdG.style.cssText=`padding:4px 3px;color:${isDom?"#ccc":"#777"};font-size:8.5px;text-align:center`;
     TIME_SLOTS.forEach(slot=>{
       const lez=slotMap[sk(iso,slot)];
-      const isOwnSlot=!pm&&fdoc&&lez&&lez.docente===fdoc;
-      const isOthersSlot=!pm&&fdoc&&lez&&lez.docente!==fdoc;
+      const isOwn=!pm&&fdoc&&lez&&lez.docente===fdoc;
+      const isOther=!pm&&fdoc&&lez&&lez.docente!==fdoc;
       const isFree=!lez;
       let bg,borderColor,cursor,clickable;
       if(isDom){bg="#f5f5f5";borderColor="#f0e0ea";cursor="default";clickable=false;}
       else if(pm){const show=!fdoc||!lez||(lez.docente===fdoc);bg=show&&lez?colorFor(S.insegnamenti,lez.insegnamento):"#fff";borderColor=show&&lez?MM:"#f0e0ea";cursor="pointer";clickable=true;}
       else if(isFree){bg="#fff";borderColor="#f0e0ea";cursor="pointer";clickable=true;}
-      else if(isOwnSlot){bg=colorFor(S.insegnamenti,lez.insegnamento);borderColor=MM;cursor="pointer";clickable=true;}
+      else if(isOwn){bg=colorFor(S.insegnamenti,lez.insegnamento);borderColor=MM;cursor="pointer";clickable=true;}
       else{bg="#f0f0f0";borderColor="#e0e0e0";cursor="not-allowed";clickable=false;}
       const td=tr.insertCell();
       td.style.cssText=`padding:3px 4px;border:1px solid ${borderColor};background:${bg};min-width:66px;max-width:84px;vertical-align:top;font-size:8.5px;height:36px;transition:background .12s;cursor:${cursor}`;
       if(clickable&&!isDom){
-        if(isFree||isOwnSlot)td.classList.add("slot-free");
+        if(isFree)td.classList.add("slot-free");
         td.addEventListener("mouseenter",()=>{if(isFree)td.style.background=ML;});
         td.addEventListener("mouseleave",()=>{if(isFree)td.style.background="#fff";});
-        td.addEventListener("click",()=>handleSlotClick(iso,slot,DAYS_IT[di],isFree?null:(pm?lez?.id:isOwnSlot?lez.id:null),pm));
+        td.addEventListener("click",()=>handleSlotClick(iso,slot,DAYS_IT[di],isFree?null:(pm?lez?.id:isOwn?lez.id:null),pm));
         td.title=isFree?"Slot libero":(lez?`${lez.docente}\n${lez.insegnamento}\n${lez.titolo}`:"");
-      }else if(!clickable&&!isDom&&lez){td.title=`Slot occupato da ${lez.docente}`;}
+      }else if(!clickable&&!isDom&&lez){td.title=`Slot occupato — ${lez.docente}: ${lez.insegnamento}`;}
       if(pm&&lez&&(!fdoc||lez.docente===fdoc)){
         const d1=document.createElement("div");d1.textContent=lez.docente.split(' ').pop();d1.style.cssText=`font-weight:800;color:${MD};font-size:7.5px;line-height:1.2;overflow:hidden;max-height:18px`;
         const d2=document.createElement("div");d2.textContent=lez.insegnamento.slice(0,22);d2.style.cssText=`color:#333;font-size:7.5px;line-height:1.2;overflow:hidden;max-height:14px`;
         td.appendChild(d1);td.appendChild(d2);
-      }else if(!pm&&isOwnSlot){
+      }else if(!pm&&isOwn){
         const d1=document.createElement("div");d1.textContent=(lez.titolo||lez.insegnamento).slice(0,20);d1.style.cssText=`font-weight:800;color:${MD};font-size:7.5px;line-height:1.2;overflow:hidden;max-height:18px`;
         const d2=document.createElement("div");d2.textContent=lez.insegnamento.slice(0,22);d2.style.cssText=`color:#333;font-size:7.5px;line-height:1.2;overflow:hidden;max-height:14px`;
         td.appendChild(d1);td.appendChild(d2);
-      }else if(!pm&&isOthersSlot){const dot=document.createElement("div");dot.textContent="●";dot.style.cssText=`color:#ccc;font-size:10px;text-align:center;margin-top:8px`;td.appendChild(dot);}
+      }else if(!pm&&isOther){
+        const dot=document.createElement("div");dot.textContent="●";dot.style.cssText=`color:#bbb;font-size:10px;text-align:center;margin-top:8px`;td.appendChild(dot);
+      }
     });
   });});
   wrap.appendChild(table);cont.innerHTML="";cont.appendChild(wrap);
 }
+
 function handleSlotClick(iso,slot,dn,lezId,pm){
   if(!pm){
-    const sa=getSA();if(!sa||!sa.modificabileDocenti){showErr("Sessione non modificabile dai docenti");return;}
+    const sa=getSA();if(!sa||!sa.modificabileDocenti){showErr("Sessione non modificabile");return;}
     if(!DOCSEL||!INSSEL){showErr("Seleziona prima docente e insegnamento");return;}
     const lez=lezId?getLZ().find(l=>l.id===lezId):null;
     if(lez&&lez.docente!==DOCSEL){showErr("Non puoi modificare lezioni di altri docenti");return;}
@@ -427,46 +535,19 @@ function renderVistaDocente(cont){
   const insDispo=DOCSEL?insForDoc(DOCSEL):S.insegnamenti;
   const wrap=document.createElement("div");
 
-  // Banner sincronizzazione per docenti
-  const syncBanner=document.createElement("div");syncBanner.className="sync-banner";
-  syncBanner.innerHTML=`<div><div style="font-weight:800;font-size:13px;margin-bottom:2px">📡 Dati locali — ${escH(S.corsoDiLaurea)}</div>
-    <div style="font-size:12px;opacity:.85">Sessione attiva: <b>${escH(sa?.nome||'—')}</b></div></div>`;
-  const syncBtnWrap=document.createElement("div");syncBtnWrap.style.cssText="display:flex;gap:8px;flex-shrink:0";
-  const syncBtn=document.createElement("button");syncBtn.className="btn btn-ghost btn-sm";
-  syncBtn.style.cssText="background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.5)";
-  syncBtn.textContent="🔄 Aggiorna dati";
-  syncBtn.addEventListener("click",()=>{
-    openModal(`<div class="modal-box" style="max-width:420px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h3 style="color:${M};font-weight:800;font-size:15px">🔄 Aggiorna dati dal Presidente</h3>
-        <button id="sync-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button></div>
-      <p style="font-size:13px;color:#555;margin-bottom:16px">Carica il file <b>stato_*.json</b> aggiornato fornito dal Presidente per ricevere le ultime modifiche (nuove sessioni, insegnamenti, orari).</p>
-      <p style="font-size:12px;color:#e67e22;font-weight:700;margin-bottom:12px">⚠️ I tuoi dati locali verranno sostituiti con quelli del file.</p>
-      <input type="file" id="sync-file" accept=".json" style="margin-bottom:14px"/>
-      <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button id="sync-cancel" class="btn btn-ghost">Annulla</button>
-        <button id="sync-ok" class="btn btn-primary">Carica e aggiorna</button>
-      </div></div>`);
-    document.getElementById("sync-close").onclick=closeModal;
-    document.getElementById("sync-cancel").onclick=closeModal;
-    document.getElementById("sync-ok").onclick=()=>{
-      const f=document.getElementById("sync-file").files[0];
-      if(!f){showErr("Seleziona un file JSON");return;}
-      importStato(f,(ok,err)=>{if(ok){closeModal();renderApp();showToast("Dati aggiornati!");}else{showErr("Errore: "+(err||"file non valido"));}});
-    };
-  });
-  syncBtnWrap.appendChild(syncBtn);syncBanner.appendChild(syncBtnWrap);
-  wrap.appendChild(syncBanner);
+  // Status bar Firebase
+  const statusBar=document.createElement("div");statusBar.style.cssText=`background:linear-gradient(135deg,#1a5276,${M});color:#fff;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap`;
+  statusBar.innerHTML=`<div>
+    <div style="font-weight:800;font-size:13px;margin-bottom:2px">🔴 Live — ${escH(S.corsoDiLaurea)}</div>
+    <div style="font-size:12px;opacity:.85">Sessione: <b>${escH(sa?.nome||'—')}</b> · Dati in tempo reale</div>
+  </div>
+  <div class="fb-status"><span class="fb-dot" style="background:#2ecc71"></span><span style="font-size:11px">Sincronizzato</span></div>`;
+  wrap.appendChild(statusBar);
 
-  // Pool docenti: tutti quelli della sessione, indipendentemente dalle ore residue.
-  // Il blocco all'inserimento avviene già a livello di slot (checkSpazio).
+  // Pool docenti della sessione
   let docentiPool;
-  if(sa&&sa.docentiIds&&sa.docentiIds.length){
-    const vd=new Set(sa.docentiIds);
-    docentiPool=S.docenti.filter(d=>vd.has(d.id)).map(d=>d.nome);
-  }else{
-    docentiPool=S.docenti.map(d=>d.nome);
-  }
+  if(sa&&sa.docentiIds&&sa.docentiIds.length){const vd=new Set(sa.docentiIds);docentiPool=S.docenti.filter(d=>vd.has(d.id)).map(d=>d.nome);}
+  else docentiPool=S.docenti.map(d=>d.nome);
   const docentiSessione=sortN(docentiPool);
   if(DOCSEL&&!docentiSessione.includes(DOCSEL)){DOCSEL="";INSSEL="";}
 
@@ -474,43 +555,31 @@ function renderVistaDocente(cont){
   const bar=document.createElement("div");bar.style.cssText=`background:${ML};border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end`;
   const sdW=document.createElement("div");sdW.innerHTML=`<label class="lbl" style="color:${MD}">Il mio nome</label>`;
   const sd=document.createElement("select");sd.style.minWidth="200px";
-  if(!docentiSessione.length){
-    sd.innerHTML=`<option value="" disabled>Nessun docente nella sessione attiva</option>`;
-  }else{
-    sd.innerHTML=`<option value="">— Seleziona —</option>`+
-      docentiSessione.map(n=>`<option value="${escA(n)}"${DOCSEL===n?' selected':''}>${escH(n)}</option>`).join('');
-  }
+  sd.innerHTML=`<option value="">— Seleziona —</option>`+docentiSessione.map(n=>`<option value="${escA(n)}"${DOCSEL===n?' selected':''}>${escH(n)}</option>`).join('');
+  if(!docentiSessione.length)sd.innerHTML=`<option value="" disabled>Nessun docente nella sessione</option>`;
   sd.addEventListener("change",e=>{DOCSEL=e.target.value;INSSEL="";renderApp();});
   sdW.appendChild(sd);bar.appendChild(sdW);
-
   if(DOCSEL){
     const siW=document.createElement("div");siW.innerHTML=`<label class="lbl" style="color:${MD}">Insegnamento</label>`;
     const si=document.createElement("select");si.style.minWidth="260px";
-    // Mostra tutti gli insegnamenti del docente; indica visivamente quelli esauriti
     si.innerHTML=`<option value="">— Seleziona —</option>`+insDispo.map(i=>{
-      const globaleUsato=countLZ(i.nome);
-      const mo=maxOreForDocIns(DOCSEL,i.nome);
-      const docUsato=oreDocIns(DOCSEL,i.nome);
-      const globaleEsaurito=globaleUsato>=i.lezioniAssegnate;
-      const docEsaurito=mo!=null&&docUsato>=mo;
-      const esaurito=globaleEsaurito||docEsaurito;
-      const label=escH(i.nome)+(esaurito?" ✓":"");
-      return`<option value="${escA(i.nome)}"${INSSEL===i.nome?' selected':''}>${label}</option>`;
+      const gUsato=countLZ(i.nome);const mo=maxOreForDocIns(DOCSEL,i.nome);const dUsato=oreDocIns(DOCSEL,i.nome);
+      const es=(gUsato>=i.lezioniAssegnate)||(mo!=null&&dUsato>=mo);
+      return`<option value="${escA(i.nome)}"${INSSEL===i.nome?' selected':''}>${escH(i.nome)}${es?" ✓":""}</option>`;
     }).join('');
-    si.addEventListener("change",e=>{INSSEL=e.target.value;renderApp();});
-    siW.appendChild(si);bar.appendChild(siW);
+    si.addEventListener("change",e=>{INSSEL=e.target.value;renderApp();});siW.appendChild(si);bar.appendChild(siW);
   }
   if(INSSEL){
-    const cnt=document.createElement("div");
-    cnt.style.cssText=`padding:8px 14px;background:#fff;border-radius:8px;border:1.5px solid ${spazio<=0?"#27ae60":M}`;
-    cnt.innerHTML=
-      `<div style="font-size:11px;color:#444;margin-bottom:2px">Globale: <b style="color:${ins_cnt>=ins_ass?"#27ae60":MD}">${ins_cnt}/${ins_ass}</b></div>`+
+    const cnt=document.createElement("div");cnt.style.cssText=`padding:8px 14px;background:#fff;border-radius:8px;border:1.5px solid ${spazio<=0?"#27ae60":M}`;
+    cnt.innerHTML=`<div style="font-size:11px;color:#444;margin-bottom:2px">Globale: <b style="color:${ins_cnt>=ins_ass?"#27ae60":MD}">${ins_cnt}/${ins_ass}</b></div>`+
       (maxOre!=null?`<div style="font-size:11px;color:#444">Tue ore: <b style="color:${oreDoc>=maxOre?"#27ae60":MD}">${oreDoc}/${maxOre}</b></div>`:'')+
       (spazio<=0?`<div><span class="badge" style="background:#27ae60;margin-top:4px;display:inline-block">✅ Completato</span></div>`:
         `<div style="font-size:11px;color:#555;margin-top:2px">Ore residue: <b style="color:${MD}">${spazio}</b></div>`);
     bar.appendChild(cnt);
   }
-  if(DOCSEL&&myLZ.length){const icsBtn=document.createElement("button");icsBtn.className="btn btn-info btn-sm";icsBtn.textContent="📅 Esporta Google Calendar";icsBtn.addEventListener("click",()=>exportICS(DOCSEL));bar.appendChild(icsBtn);}
+  if(DOCSEL&&myLZ.length){
+    const icsBtn=document.createElement("button");icsBtn.className="btn btn-info btn-sm";icsBtn.textContent="📅 Esporta ICS";icsBtn.addEventListener("click",()=>exportICS(DOCSEL));bar.appendChild(icsBtn);
+  }
   wrap.appendChild(bar);
 
   if(!sessOk){const warn=document.createElement("div");warn.style.cssText="background:#fff3cd;border:1.5px solid #ffc107;border-radius:10px;padding:14px 16px;margin-bottom:16px;color:#856404;font-weight:700;font-size:13px";warn.textContent=sa?"⚠️ La sessione attiva non è visibile ai docenti.":"⚠️ Nessuna sessione attiva.";wrap.appendChild(warn);}
@@ -528,36 +597,20 @@ function renderVistaDocente(cont){
     </div><div id="rc-results"></div>`;
     wrap.appendChild(rcBox);setTimeout(()=>document.getElementById("btn-cerca")?.addEventListener("click",cercaSlot),0);
   }else if(DOCSEL&&INSSEL&&sessOk&&spazio<=0){
-    // Ore esaurite: messaggio informativo (non bloccante), il calendario resta visibile
-    const sb=document.createElement("div");
-    sb.style.cssText="background:#f0faf4;border:1.5px solid #27ae60;border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#1e8449;font-size:13px";
-    sb.innerHTML=`<b>✅ Ore completate per questo insegnamento.</b> Il calendario mostra le lezioni già inserite. Se hai bisogno di aggiungere ore, contatta il Presidente del CdS.`;
-    wrap.appendChild(sb);
+    const sb=document.createElement("div");sb.style.cssText="background:#f0faf4;border:1.5px solid #27ae60;border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#1e8449;font-size:13px";sb.innerHTML=`<b>✅ Ore completate.</b> Il calendario mostra le lezioni già inserite.`;wrap.appendChild(sb);
   }
 
   const hint=document.createElement("p");hint.style.cssText="font-size:12px;color:#555;margin-bottom:10px";
   const tbDiv=document.createElement("div");wrap.appendChild(tbDiv);
   cont.innerHTML="";cont.appendChild(wrap);
-
-  // Il tabellone si mostra sempre quando docente e insegnamento sono selezionati
-  if(sessOk&&DOCSEL&&INSSEL){
-    hint.textContent=spazio>0
-      ?"Clicca su una cella libera per inserire una lezione. Le celle colorate mostrano le tue lezioni già inserite."
-      :"Le tue lezioni calendarizzate per questo insegnamento:";
-    wrap.insertBefore(hint,tbDiv);
-    renderTabellone(tbDiv,false,DOCSEL);
-  }else if(sessOk&&DOCSEL&&!INSSEL){
-    hint.textContent="Seleziona l'insegnamento per visualizzare il calendario.";
-    wrap.insertBefore(hint,tbDiv);
-  }else{
-    hint.textContent="Seleziona il tuo nome e l'insegnamento per iniziare.";
-    wrap.insertBefore(hint,tbDiv);
-  }
+  if(sessOk&&DOCSEL&&INSSEL){hint.textContent=spazio>0?"Clicca su una cella libera per inserire una lezione.":"Le tue lezioni calendarizzate:";wrap.insertBefore(hint,tbDiv);renderTabellone(tbDiv,false,DOCSEL);}
+  else if(sessOk&&DOCSEL&&!INSSEL){hint.textContent="Seleziona l'insegnamento per visualizzare il calendario.";wrap.insertBefore(hint,tbDiv);}
+  else if(!DOCSEL){hint.textContent="Seleziona il tuo nome per iniziare.";wrap.insertBefore(hint,tbDiv);}
 }
 
 function cercaSlot(){
   const sa=getSA();if(!sa)return;
-  const slotMap=buildSlotMap(sa.lezioni);const weeks=generateWeeks(sa.dataInizio,sa.dataFine);
+  const slotMap=buildSlotMap(sa.lezioni||[]);const weeks=generateWeeks(sa.dataInizio,sa.dataFine);
   const fmap={mattina:TIME_SLOTS.slice(0,5),pomeriggio:TIME_SLOTS.slice(5,10),sera:TIME_SLOTS.slice(10)};
   const fascia=document.getElementById("rc-fascia")?.value||"tutti";const tipo=document.getElementById("rc-tipo")?.value||"singoli";
   const giorni=[...document.querySelectorAll(".rc-g:checked")].map(c=>c.value);
@@ -582,14 +635,33 @@ function cercaSlot(){
   </div><button class="btn btn-primary btn-sm" id="btn-prenota">Prenota selezionati</button>`;
   document.getElementById("btn-prenota")?.addEventListener("click",()=>prenotaSelezionati(spazio));
 }
-function prenotaSelezionati(spazio){
+
+async function prenotaSelezionati(spazio){
   const cbs=[...document.querySelectorAll(".rc-cb:checked")];if(!cbs.length){showErr("Nessuno slot selezionato");return;}
   const lz=[];cbs.forEach(cb=>{lz.push({id:uid(),data:cb.dataset.iso,fasciaOraria:cb.dataset.s,docente:DOCSEL,insegnamento:INSSEL,titolo:"(da completare)",giornoSettimana:cb.dataset.day});if(cb.dataset.tipo==="doppia"&&cb.dataset.sc)lz.push({id:uid(),data:cb.dataset.iso,fasciaOraria:cb.dataset.sc,docente:DOCSEL,insegnamento:INSSEL,titolo:"(da completare)",giornoSettimana:cb.dataset.day});});
   const err=checkSpazio(DOCSEL,INSSEL,lz.length);if(err){showErr(err);return;}
   const sa=getSA();if(!sa)return;
-  const nuove=lz.filter(n=>!sa.lezioni.find(x=>x.data===n.data&&x.fasciaOraria===n.fasciaOraria));
-  S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:[...s.lezioni,...nuove]}:s);
-  saveState();renderApp();showToast(`${nuove.length} slot prenotati!`);
+  // Rileggi da Firebase per evitare conflitti
+  try{
+    const snap=await get(ref(db,`${ROOT}/sessioni`));
+    const sessioni=snap.val();
+    if(sessioni){
+      const arr=Array.isArray(sessioni)?sessioni:Object.values(sessioni);
+      const liveS=arr.find(s=>s.id===sa.id);
+      if(liveS){
+        const lzLive=[...(liveS.lezioni||[])];
+        const conflitti=lz.filter(n=>lzLive.find(x=>x.data===n.data&&x.fasciaOraria===n.fasciaOraria));
+        if(conflitti.length>0){showErr(`${conflitti.length} slot già occupati. Ricarica la pagina e riprova.`);return;}
+        const nuove=lz.filter(n=>!lzLive.find(x=>x.data===n.data&&x.fasciaOraria===n.fasciaOraria));
+        const lzFin=[...lzLive,...nuove];
+        S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:lzFin}:s);
+        const idx=S.sessioni.findIndex(s=>s.id===sa.id);
+        await set(ref(db,`${ROOT}/sessioni/${idx}`),{...sa,lezioni:lzFin});
+        showToast(`${nuove.length} slot prenotati!`);
+        return;
+      }
+    }
+  }catch(e){showErr("Errore di connessione: "+e.message);}
 }
 
 /* ── Dashboard ───────────────────────────────────────────────── */
@@ -613,9 +685,8 @@ function renderDashboard(cont){
 function checkPw(){const v=(document.getElementById("pw-inp")||{}).value;if(v==="password"){AUTH=true;renderApp();}else{const e=document.getElementById("pw-err");if(e)e.textContent="Password errata.";}}
 function setDTab(t){DTAB=t;renderApp();}
 
-/* ── Overview ────────────────────────────────────────────────── */
 function renderOverview(cont){
-  const sa=getSA();const lz=sa?sa.lezioni:[];
+  const sa=getSA();const lz=sa?sa.lezioni||[]:[];
   const allIns=S.insegnamenti.map(ins=>{const inserite=lz.filter(l=>l.insegnamento===ins.nome).length;const mancanti=ins.lezioniAssegnate-inserite;const status=inserite===0?"zero":inserite>=ins.lezioniAssegnate?"completo":"parziale";const docenti=[...new Set(lz.filter(l=>l.insegnamento===ins.nome).map(l=>l.docente))];return{...ins,inserite,mancanti,status,docenti};});
   const completi=allIns.filter(i=>i.status==="completo").length;const parziali=allIns.filter(i=>i.status==="parziale").length;const nonInit=allIns.filter(i=>i.status==="zero").length;
   const filtered=DFILT==="tutti"?allIns:allIns.filter(i=>i.status===DFILT);
@@ -647,11 +718,10 @@ function setDFilt(f){DFILT=f;renderApp();}
 function editLezAss(id,current){
   openModal(`<div class="modal-box" style="max-width:360px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="color:${M};font-weight:800;font-size:15px">Modifica lezioni previste</h3><button id="ela-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button></div><label class="lbl">Numero lezioni assegnate</label><input type="number" id="la-val" value="${current}" min="1" style="margin-bottom:16px"/><div style="display:flex;gap:10px;justify-content:flex-end"><button id="ela-cancel" class="btn btn-ghost">Annulla</button><button id="ela-save" class="btn btn-primary">Salva</button></div></div>`);
   document.getElementById("ela-close").onclick=closeModal;document.getElementById("ela-cancel").onclick=closeModal;
-  document.getElementById("ela-save").onclick=()=>{const v=parseInt(document.getElementById("la-val")?.value||"0");if(!v||v<1){showErr("Valore non valido");return;}S.insegnamenti=S.insegnamenti.map(i=>i.id===id?{...i,lezioniAssegnate:v}:i);saveState();closeModal();renderApp();showToast("Aggiornato!");};
+  document.getElementById("ela-save").onclick=async()=>{const v=parseInt(document.getElementById("la-val")?.value||"0");if(!v||v<1){showErr("Valore non valido");return;}S.insegnamenti=S.insegnamenti.map(i=>i.id===id?{...i,lezioniAssegnate:v}:i);await saveToFB();closeModal();showToast("Aggiornato!");};
   setTimeout(()=>document.getElementById("la-val")?.focus(),100);
 }
 
-/* ── Sessioni ────────────────────────────────────────────────── */
 function renderSessioniTab(cont){
   const wrap=document.createElement("div");
   const hdr=document.createElement("div");hdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px";hdr.innerHTML=`<h3 style="color:#1a1a1a;font-weight:800;font-size:15px">Gestione Sessioni</h3>`;
@@ -665,7 +735,7 @@ function renderSessioniTab(cont){
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <span class="badge" style="background:${sess.visibileDocenti?"#27ae60":"#7f8c8d"}">${sess.visibileDocenti?"👁 Visibile":"🚫 Nascosta"}</span>
           <span class="badge" style="background:${sess.modificabileDocenti?"#2980b9":"#7f8c8d"}">${sess.modificabileDocenti?"✏️ Modificabile":"🔒 Sola lettura"}</span>
-          <span class="badge" style="background:${MD}">${sess.lezioni.length} lezioni</span>
+          <span class="badge" style="background:${MD}">${(sess.lezioni||[]).length} lezioni</span>
         </div>
       </div>
       <div id="sb-${sess.id}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
@@ -679,16 +749,23 @@ function renderSessioniTab(cont){
   });
   cont.innerHTML="";cont.appendChild(wrap);
 }
-function setSessAttiva(id){S.sessioneAttiva=id;DOCSEL="";INSSEL="";saveState();renderApp();showToast("Sessione attiva aggiornata!");}
-function deleteSess(id){openConfirm("Eliminare questa sessione e tutte le sue lezioni?",()=>{S.sessioni=S.sessioni.filter(s=>s.id!==id);if(S.sessioneAttiva===id)S.sessioneAttiva=S.sessioni[0]?.id||"";saveState();renderApp();showToast("Sessione eliminata.");});}
+
+async function setSessAttiva(id){S.sessioneAttiva=id;DOCSEL="";INSSEL="";await saveToFB();showToast("Sessione attiva aggiornata!");}
+function deleteSess(id){
+  openConfirm("Eliminare questa sessione e tutte le sue lezioni?",async()=>{
+    S.sessioni=S.sessioni.filter(s=>s.id!==id);
+    if(S.sessioneAttiva===id)S.sessioneAttiva=S.sessioni[0]?.id||"";
+    await saveToFB();showToast("Sessione eliminata.");
+  });
+}
 
 /* ── CSV Carico Didattico ────────────────────────────────────── */
-let _csvParsed=null,_csvSessionInsIds=[],_csvSessionDocIds=[];
+let _csvParsed=null,_csvSIIds=[],_csvSDIds=[];
 function parseCSVCarico(text){
-  function parseRow(line){const res=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}else if(c===','&&!inQ){res.push(cur.trim());cur='';}else cur+=c;}res.push(cur.trim());return res;}
+  function pr(line){const res=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}else if(c===','&&!inQ){res.push(cur.trim());cur='';}else cur+=c;}res.push(cur.trim());return res;}
   const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l=>l.trim());if(lines.length<2)return null;
   const rows=[];const cdsList=new Set();
-  for(let i=1;i<lines.length;i++){const r=parseRow(lines[i]);if(r.length<6)continue;const cds=(r[5]||'').trim();if(!cds)continue;cdsList.add(cds);rows.push(r);}
+  for(let i=1;i<lines.length;i++){const r=pr(lines[i]);if(r.length<6)continue;const cds=(r[5]||'').trim();if(!cds)continue;cdsList.add(cds);rows.push(r);}
   return{cdsList:[...cdsList].sort(),rows};
 }
 function onCSVFileChange(evt){
@@ -697,24 +774,17 @@ function onCSVFileChange(evt){
   reader.onload=e=>{const parsed=parseCSVCarico(e.target.result);if(!parsed||!parsed.rows.length){showErr("File CSV non valido o vuoto.");return;}
     _csvParsed=parsed;const box=document.getElementById("csv-step2");if(!box)return;
     box.innerHTML=`<label class="lbl" style="margin-top:4px">Seleziona il Corso di Studi *</label><select id="csv-cds" style="margin-bottom:10px"><option value="">— Scegli CdS —</option>${parsed.cdsList.map(c=>`<option value="${escA(c)}">${escH(c)}</option>`).join('')}</select><div id="csv-preview" style="font-size:12px;color:#555;min-height:20px"></div>`;
-    document.getElementById("csv-cds")?.addEventListener("change",onCSVCdsChange);};
+    document.getElementById("csv-cds")?.addEventListener("change",()=>{const cds=(document.getElementById("csv-cds")||{}).value;if(!cds||!_csvParsed)return;const rows=_csvParsed.rows.filter(r=>(r[5]||'').trim()===cds);const insSet=new Set();const docSet=new Set();rows.forEach(r=>{const n=(r[2]||'').trim();if(n)insSet.add(n);[[12],[16],[20],[24]].forEach(([di])=>{const d=(r[di]||'').trim();if(d)docSet.add(d);});});const prev=document.getElementById("csv-preview");if(prev)prev.innerHTML=`<span style="color:#27ae60;font-weight:700">✅ Trovati: ${insSet.size} insegnamenti, ${docSet.size} docenti</span>`;});};
   reader.readAsText(file,'UTF-8');
 }
-function onCSVCdsChange(){
-  const cds=(document.getElementById("csv-cds")||{}).value;if(!cds||!_csvParsed)return;
-  const rows=_csvParsed.rows.filter(r=>(r[5]||'').trim()===cds);const insSet=new Set();const docSet=new Set();
-  rows.forEach(r=>{const n=(r[2]||'').trim();if(n)insSet.add(n);[[12],[16],[20],[24]].forEach(([di])=>{const d=(r[di]||'').trim();if(d)docSet.add(d);});});
-  const prev=document.getElementById("csv-preview");if(prev)prev.innerHTML=`<span style="color:#27ae60;font-weight:700">✅ Trovati: ${insSet.size} insegnamenti, ${docSet.size} docenti</span>`;
-}
 function applyCSVImport(cds){
-  if(!_csvParsed||!cds)return false;
-  const rows=_csvParsed.rows.filter(r=>(r[5]||'').trim()===cds);if(!rows.length)return false;
+  if(!_csvParsed||!cds)return false;const rows=_csvParsed.rows.filter(r=>(r[5]||'').trim()===cds);if(!rows.length)return false;
   const insMap={};const docMap={};
-  rows.forEach(r=>{const insNome=(r[2]||'').trim();if(!insNome)return;const oreGlob=parseInt(r[10])||0;if(!insMap[insNome]||oreGlob>0)insMap[insNome]=oreGlob;const coppie=[[12,13],[16,17],[20,21],[24,25]];coppie.forEach(([ni,oi])=>{const docNome=(r[ni]||'').trim();const oreDoc=parseInt(r[oi])||0;if(!docNome||oreDoc<=0)return;if(!docMap[docNome])docMap[docNome]={};docMap[docNome][insNome]=(docMap[docNome][insNome]||0)+oreDoc;});});
-  const sessionInsIds=[],sessionDocIds=[];
-  Object.entries(insMap).forEach(([nome,ore])=>{let ex=S.insegnamenti.find(i=>i.nome.toLowerCase()===nome.toLowerCase());if(ex){S.insegnamenti=S.insegnamenti.map(i=>i.id===ex.id?{...i,lezioniAssegnate:ore>0?ore:i.lezioniAssegnate}:i);sessionInsIds.push(ex.id);}else{const nI={id:uid(),nome,lezioniAssegnate:ore>0?ore:12};S.insegnamenti.push(nI);sessionInsIds.push(nI.id);}});
-  Object.entries(docMap).forEach(([docNome,insOreMap])=>{const insegnamenti=Object.entries(insOreMap).map(([iN,mo])=>{const ins=S.insegnamenti.find(i=>i.nome.toLowerCase()===iN.toLowerCase());if(!ins)return null;return{insId:ins.id,maxOre:mo>0?mo:null};}).filter(Boolean);let ex=S.docenti.find(d=>d.nome.toLowerCase()===docNome.toLowerCase());if(ex){const eI=[...(ex.insegnamenti||[])];insegnamenti.forEach(ni=>{const idx=eI.findIndex(x=>x.insId===ni.insId);if(idx>=0)eI[idx]={...eI[idx],maxOre:ni.maxOre};else eI.push(ni);});S.docenti=S.docenti.map(d=>d.id===ex.id?{...d,insegnamenti:eI}:d);sessionDocIds.push(ex.id);}else{const nD={id:uid(),nome:docNome,insegnamenti};S.docenti.push(nD);sessionDocIds.push(nD.id);}});
-  _csvSessionInsIds=sessionInsIds;_csvSessionDocIds=sessionDocIds;return true;
+  rows.forEach(r=>{const iN=(r[2]||'').trim();if(!iN)return;const og=parseInt(r[10])||0;if(!insMap[iN]||og>0)insMap[iN]=og;const cp=[[12,13],[16,17],[20,21],[24,25]];cp.forEach(([ni,oi])=>{const dN=(r[ni]||'').trim();const od=parseInt(r[oi])||0;if(!dN||od<=0)return;if(!docMap[dN])docMap[dN]={};docMap[dN][iN]=(docMap[dN][iN]||0)+od;});});
+  const sII=[],sDI=[];
+  Object.entries(insMap).forEach(([n,o])=>{let ex=S.insegnamenti.find(i=>i.nome.toLowerCase()===n.toLowerCase());if(ex){S.insegnamenti=S.insegnamenti.map(i=>i.id===ex.id?{...i,lezioniAssegnate:o>0?o:i.lezioniAssegnate}:i);sII.push(ex.id);}else{const nI={id:uid(),nome:n,lezioniAssegnate:o>0?o:12};S.insegnamenti.push(nI);sII.push(nI.id);}});
+  Object.entries(docMap).forEach(([dN,ioM])=>{const ins=Object.entries(ioM).map(([iN,mo])=>{const i=S.insegnamenti.find(x=>x.nome.toLowerCase()===iN.toLowerCase());if(!i)return null;return{insId:i.id,maxOre:mo>0?mo:null};}).filter(Boolean);let ex=S.docenti.find(d=>d.nome.toLowerCase()===dN.toLowerCase());if(ex){const eI=[...(ex.insegnamenti||[])];ins.forEach(ni=>{const idx=eI.findIndex(x=>x.insId===ni.insId);if(idx>=0)eI[idx]={...eI[idx],maxOre:ni.maxOre};else eI.push(ni);});S.docenti=S.docenti.map(d=>d.id===ex.id?{...d,insegnamenti:eI}:d);sDI.push(ex.id);}else{const nD={id:uid(),nome:dN,insegnamenti:ins};S.docenti.push(nD);sDI.push(nD.id);}});
+  _csvSIIds=sII;_csvSDIds=sDI;return true;
 }
 function openSessModal(id){
   const sess=id?S.sessioni.find(s=>s.id===id):null;_csvParsed=null;
@@ -733,7 +803,6 @@ function openSessModal(id){
     </div>
     ${!sess?`<div style="background:#f0f8ff;border:1.5px solid #2980b9;border-radius:10px;padding:14px 16px;margin-bottom:14px">
       <div style="font-weight:800;color:#1a5276;font-size:13px;margin-bottom:8px">📂 Importa Carico Didattico (opzionale)</div>
-      <p style="font-size:12px;color:#555;margin-bottom:10px">Carica il CSV del carico didattico per importare insegnamenti, docenti e ore per un CdS.</p>
       <label class="lbl">File CSV carico didattico</label><input type="file" id="csv-file" accept=".csv" style="margin-bottom:10px"/>
       <div id="csv-step2"></div></div>`:''}
     <div style="display:flex;justify-content:flex-end;gap:10px">
@@ -743,85 +812,85 @@ function openSessModal(id){
   document.getElementById("sm-close").onclick=closeModal;document.getElementById("sm-cancel").onclick=closeModal;document.getElementById("sm-save").onclick=()=>saveSess(id||"");
   if(!sess)document.getElementById("csv-file")?.addEventListener("change",onCSVFileChange);
 }
-function saveSess(id){
+async function saveSess(id){
   const nome=(document.getElementById("s-nome")||{}).value?.trim();const ini=(document.getElementById("s-ini")||{}).value;const fin=(document.getElementById("s-fin")||{}).value;const vis=document.getElementById("s-vis")?.checked;const mod=document.getElementById("s-mod")?.checked;
   if(!nome||!ini||!fin){showErr("Compila tutti i campi");return;}if(ini>fin){showErr("Data inizio deve precedere data fine");return;}
   let csvApplied=false;
   if(!id&&_csvParsed){const cds=(document.getElementById("csv-cds")||{}).value;if(cds){csvApplied=applyCSVImport(cds);if(!csvApplied){showErr("Errore importazione CSV");return;}}}
-  if(id){S.sessioni=S.sessioni.map(s=>s.id===id?{...s,nome,dataInizio:ini,dataFine:fin,visibileDocenti:!!vis,modificabileDocenti:!!mod}:s);showToast("Sessione aggiornata!");}
-  else{const ns={id:uid(),nome,dataInizio:ini,dataFine:fin,visibileDocenti:!!vis,modificabileDocenti:!!mod,lezioni:[],insegnamentiIds:csvApplied?[..._csvSessionInsIds]:null,docentiIds:csvApplied?[..._csvSessionDocIds]:null};S.sessioni.push(ns);S.sessioneAttiva=ns.id;showToast(csvApplied?"✅ Sessione creata e carico importato!":"Sessione creata!");}
-  _csvParsed=null;_csvSessionInsIds=[];_csvSessionDocIds=[];saveState();closeModal();renderApp();
+  if(id){S.sessioni=S.sessioni.map(s=>s.id===id?{...s,nome,dataInizio:ini,dataFine:fin,visibileDocenti:!!vis,modificabileDocenti:!!mod}:s);}
+  else{const ns={id:uid(),nome,dataInizio:ini,dataFine:fin,visibileDocenti:!!vis,modificabileDocenti:!!mod,lezioni:[],insegnamentiIds:csvApplied?[..._csvSIIds]:null,docentiIds:csvApplied?[..._csvSDIds]:null};S.sessioni.push(ns);S.sessioneAttiva=ns.id;}
+  _csvParsed=null;_csvSIIds=[];_csvSDIds=[];
+  await saveToFB();closeModal();showToast(id?"Sessione aggiornata!":csvApplied?"✅ Sessione creata e carico importato!":"Sessione creata!");
 }
 
-/* ── Tabellone Tab ───────────────────────────────────────────── */
 function renderTabelloneTab(cont){
   const sa=getSA();const wrap=document.createElement("div");
   const ar=document.createElement("div");ar.className="action-row";
   ar.innerHTML=`<div><label class="lbl">Filtra per docente</label><select id="tf-doc" style="min-width:180px"><option value="">Tutti i docenti</option>${sortN(S.docenti.map(d=>d.nome)).map(n=>`<option value="${escA(n)}"${TF_DOC===n?" selected":""}>${escH(n)}</option>`).join('')}</select></div>`;
   const right=document.createElement("div");right.style.cssText="margin-left:auto;display:flex;gap:8px";
   const b1=document.createElement("button");b1.className="btn btn-primary btn-sm";b1.textContent="⬇ Esporta CSV";b1.addEventListener("click",()=>exportSessCSV(sa?.id||""));
-  const b2=document.createElement("button");b2.className="btn btn-warn btn-sm";b2.textContent="🔄 Reset lezioni";b2.addEventListener("click",()=>openConfirm("Resettare TUTTE le lezioni della sessione attiva?",()=>{const sa=getSA();if(!sa)return;S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:[]}:s);saveState();renderApp();showToast("Sessione resettata.");}));
+  const b2=document.createElement("button");b2.className="btn btn-warn btn-sm";b2.textContent="🔄 Reset lezioni";
+  b2.addEventListener("click",()=>openConfirm("Resettare TUTTE le lezioni della sessione attiva?",async()=>{const sa=getSA();if(!sa)return;S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:[]}:s);await saveToFB();showToast("Sessione resettata.");}));
   right.appendChild(b1);right.appendChild(b2);ar.appendChild(right);wrap.appendChild(ar);
   const tbDiv=document.createElement("div");wrap.appendChild(tbDiv);cont.innerHTML="";cont.appendChild(wrap);
   document.getElementById("tf-doc")?.addEventListener("change",e=>{TF_DOC=e.target.value;renderApp();});
   renderTabellone(tbDiv,true,TF_DOC||null);
 }
 
-/* ── Anagrafiche ─────────────────────────────────────────────── */
 function renderAnagrafiche(cont){
   const sa=getSA();const wrap=document.createElement("div");wrap.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:24px";
   let visInsIds,visDocIds;
   if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length){visInsIds=new Set(sa.insegnamentiIds);visDocIds=new Set(sa.docentiIds||[]);}
-  else if(sa&&sa.lezioni&&sa.lezioni.length){visInsIds=new Set(sa.lezioni.map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));visDocIds=new Set(sa.lezioni.map(l=>{const d=S.docenti.find(x=>x.nome===l.docente);return d?d.id:null}).filter(Boolean));}
+  else if(sa&&(sa.lezioni||[]).length){const lz=sa.lezioni;visInsIds=new Set(lz.map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));visDocIds=new Set(lz.map(l=>{const d=S.docenti.find(x=>x.nome===l.docente);return d?d.id:null}).filter(Boolean));}
   else{visInsIds=new Set();visDocIds=new Set();}
-  const sessLabel=sa?` — ${escH(sa.nome)}`:'';
+  const sL=sa?` — ${escH(sa.nome)}`:'';
   // Docenti
-  const docCol=document.createElement("div");const docHdr=document.createElement("div");docHdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";
-  docHdr.innerHTML=`<div><h3 style="color:#1a1a1a;font-weight:800;font-size:15px">👩‍🏫 Docenti</h3><div style="font-size:11px;color:#888;margin-top:2px">Sessione attiva${sessLabel}</div></div>`;
-  const dbtns=document.createElement("div");dbtns.style.cssText="display:flex;gap:6px;flex-shrink:0";
-  const csvBtn=document.createElement("button");csvBtn.className="btn btn-teal btn-xs";csvBtn.textContent="⬇ Export CSV ore";csvBtn.addEventListener("click",exportDocentiCSV);
-  const addD=document.createElement("button");addD.className="btn btn-primary btn-xs";addD.textContent="+ Aggiungi";addD.addEventListener("click",()=>openDocModal(null));
-  dbtns.appendChild(csvBtn);dbtns.appendChild(addD);docHdr.appendChild(dbtns);docCol.appendChild(docHdr);
-  const docList=document.createElement("div");docList.style.cssText="max-height:560px;overflow-y:auto;padding-right:4px";
-  const docentiVis=sortN(S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome));
-  if(!docentiVis.length){const e=document.createElement("p");e.style.cssText="font-size:13px;color:#888;padding:12px 0";e.textContent="Nessun docente per la sessione attiva.";docList.appendChild(e);}
-  docentiVis.forEach(nome=>{
-    const d=S.docenti.find(x=>x.nome===nome);const ni=d?.insegnamenti?.filter(x=>visInsIds.has(x.insId)).length||0;const niTot=d?.insegnamenti?.length||0;const oreD=sa?sa.lezioni.filter(l=>l.docente===nome).length:0;
+  const dC=document.createElement("div");const dH=document.createElement("div");dH.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";
+  dH.innerHTML=`<div><h3 style="color:#1a1a1a;font-weight:800;font-size:15px">👩‍🏫 Docenti</h3><div style="font-size:11px;color:#888;margin-top:2px">Sessione attiva${sL}</div></div>`;
+  const db2=document.createElement("div");db2.style.cssText="display:flex;gap:6px;flex-shrink:0";
+  const cB=document.createElement("button");cB.className="btn btn-teal btn-xs";cB.textContent="⬇ Export CSV ore";cB.addEventListener("click",exportDocentiCSV);
+  const aD=document.createElement("button");aD.className="btn btn-primary btn-xs";aD.textContent="+ Aggiungi";aD.addEventListener("click",()=>openDocModal(null));
+  db2.appendChild(cB);db2.appendChild(aD);dH.appendChild(db2);dC.appendChild(dH);
+  const dL=document.createElement("div");dL.style.cssText="max-height:560px;overflow-y:auto;padding-right:4px";
+  const dV=sortN(S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome));
+  if(!dV.length){const e=document.createElement("p");e.style.cssText="font-size:13px;color:#888;padding:12px 0";e.textContent="Nessun docente per la sessione attiva.";dL.appendChild(e);}
+  dV.forEach(nome=>{
+    const d=S.docenti.find(x=>x.nome===nome);const ni=d?.insegnamenti?.filter(x=>visInsIds.has(x.insId)).length||0;const niT=d?.insegnamenti?.length||0;const oD=sa?(sa.lezioni||[]).filter(l=>l.docente===nome).length:0;
     const item=document.createElement("div");item.className="list-item";const info=document.createElement("div");info.style.cssText="flex:1;min-width:0";
-    info.innerHTML=`<div class="item-title">${escH(nome)}</div><div class="item-sub">${niTot===0?"Tutti gli insegnamenti":`${ni} ins. in questa sessione`} · ${oreD} ore inserite</div>`;
+    info.innerHTML=`<div class="item-title">${escH(nome)}</div><div class="item-sub">${niT===0?"Tutti gli insegnamenti":`${ni} ins. in questa sessione`} · ${oD} ore inserite</div>`;
     const bx=document.createElement("div");bx.style.cssText="display:flex;gap:6px;flex-shrink:0";
     const eb=document.createElement("button");eb.className="btn btn-ghost btn-xs";eb.textContent="✏️ Modifica";eb.addEventListener("click",()=>openDocModal(d.id));
-    const db=document.createElement("button");db.className="btn btn-danger btn-xs";db.textContent="🗑";db.addEventListener("click",()=>deleteDoc(d.id));
-    bx.appendChild(eb);bx.appendChild(db);item.appendChild(info);item.appendChild(bx);docList.appendChild(item);
+    const db3=document.createElement("button");db3.className="btn btn-danger btn-xs";db3.textContent="🗑";db3.addEventListener("click",()=>deleteDoc(d.id));
+    bx.appendChild(eb);bx.appendChild(db3);item.appendChild(info);item.appendChild(bx);dL.appendChild(item);
   });
-  docCol.appendChild(docList);wrap.appendChild(docCol);
+  dC.appendChild(dL);wrap.appendChild(dC);
   // Insegnamenti
-  const insCol=document.createElement("div");const insHdr=document.createElement("div");insHdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";
-  insHdr.innerHTML=`<div><h3 style="color:#1a1a1a;font-weight:800;font-size:15px">📚 Insegnamenti</h3><div style="font-size:11px;color:#888;margin-top:2px">Sessione attiva${sessLabel}</div></div>`;
-  const addI=document.createElement("button");addI.className="btn btn-primary btn-xs";addI.textContent="+ Aggiungi";addI.addEventListener("click",()=>openInsModal(null));insHdr.appendChild(addI);insCol.appendChild(insHdr);
-  const insList=document.createElement("div");insList.style.cssText="max-height:560px;overflow-y:auto;padding-right:4px";
-  const insVis=S.insegnamenti.filter(i=>visInsIds.has(i.id));
-  if(!insVis.length){const e=document.createElement("p");e.style.cssText="font-size:13px;color:#888;padding:12px 0";e.textContent="Nessun insegnamento per la sessione attiva.";insList.appendChild(e);}
-  insVis.forEach(ins=>{
-    const oreIns=sa?sa.lezioni.filter(l=>l.insegnamento===ins.nome).length:0;const item=document.createElement("div");item.className="list-item";const info=document.createElement("div");info.style.cssText="flex:1;min-width:0";
-    info.innerHTML=`<div class="item-title" style="font-size:12px">${escH(ins.nome)}</div><div class="item-sub">${ins.lezioniAssegnate} ore previste · ${oreIns} inserite</div>`;
+  const iC=document.createElement("div");const iH=document.createElement("div");iH.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";
+  iH.innerHTML=`<div><h3 style="color:#1a1a1a;font-weight:800;font-size:15px">📚 Insegnamenti</h3><div style="font-size:11px;color:#888;margin-top:2px">Sessione attiva${sL}</div></div>`;
+  const aI=document.createElement("button");aI.className="btn btn-primary btn-xs";aI.textContent="+ Aggiungi";aI.addEventListener("click",()=>openInsModal(null));iH.appendChild(aI);iC.appendChild(iH);
+  const iL=document.createElement("div");iL.style.cssText="max-height:560px;overflow-y:auto;padding-right:4px";
+  const iV=S.insegnamenti.filter(i=>visInsIds.has(i.id));
+  if(!iV.length){const e=document.createElement("p");e.style.cssText="font-size:13px;color:#888;padding:12px 0";e.textContent="Nessun insegnamento per la sessione attiva.";iL.appendChild(e);}
+  iV.forEach(ins=>{
+    const oI=sa?(sa.lezioni||[]).filter(l=>l.insegnamento===ins.nome).length:0;const item=document.createElement("div");item.className="list-item";const info=document.createElement("div");info.style.cssText="flex:1;min-width:0";
+    info.innerHTML=`<div class="item-title" style="font-size:12px">${escH(ins.nome)}</div><div class="item-sub">${ins.lezioniAssegnate} ore previste · ${oI} inserite</div>`;
     const bx=document.createElement("div");bx.style.cssText="display:flex;gap:6px;flex-shrink:0";
     const eb=document.createElement("button");eb.className="btn btn-ghost btn-xs";eb.textContent="✏️ Modifica";eb.addEventListener("click",()=>openInsModal(ins.id));
-    const db=document.createElement("button");db.className="btn btn-danger btn-xs";db.textContent="🗑";db.addEventListener("click",()=>deleteIns(ins.id));
-    bx.appendChild(eb);bx.appendChild(db);item.appendChild(info);item.appendChild(bx);insList.appendChild(item);
+    const db4=document.createElement("button");db4.className="btn btn-danger btn-xs";db4.textContent="🗑";db4.addEventListener("click",()=>deleteIns(ins.id));
+    bx.appendChild(eb);bx.appendChild(db4);item.appendChild(info);item.appendChild(bx);iL.appendChild(item);
   });
-  insCol.appendChild(insList);wrap.appendChild(insCol);cont.innerHTML="";cont.appendChild(wrap);
+  iC.appendChild(iL);wrap.appendChild(iC);cont.innerHTML="";cont.appendChild(wrap);
 }
 function openDocModal(id){
   const d=id?S.docenti.find(x=>x.id===id):null;const vinc=d?.insegnamenti||[];const vmap={};vinc.forEach(v=>{vmap[v.insId]={checked:true,maxOre:v.maxOre};});
-  const sa=getSA();let sessInsIds;
-  if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length)sessInsIds=new Set(sa.insegnamentiIds);
-  else if(sa&&sa.lezioni&&sa.lezioni.length)sessInsIds=new Set(sa.lezioni.map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));
-  else sessInsIds=new Set();
-  const insS=S.insegnamenti.filter(i=>sessInsIds.has(i.id));
+  const sa=getSA();let sII;
+  if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length)sII=new Set(sa.insegnamentiIds);
+  else if(sa&&(sa.lezioni||[]).length)sII=new Set((sa.lezioni||[]).map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));
+  else sII=new Set();
+  const insS=S.insegnamenti.filter(i=>sII.has(i.id));
   openModal(`<div class="modal-box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="color:${M};font-weight:800;font-size:15px">${d?"Modifica docente":"Nuovo docente"}</h3><button id="dm-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button></div>
     <div style="margin-bottom:13px"><label class="lbl">Nome e cognome *</label><input type="text" id="d-nome" value="${escA(d?.nome||'')}" placeholder="Nome Cognome"/></div>
-    <div style="margin-bottom:6px"><label class="lbl">Insegnamenti abilitati e ore massime</label><p style="font-size:11px;color:#555;margin-bottom:8px">Tutto deselezionato = tutti gli insegnamenti. Spunta per vincolare; inserisci max ore (vuoto = nessun limite).</p>
+    <div style="margin-bottom:6px"><label class="lbl">Insegnamenti abilitati e ore massime</label>
       <div style="max-height:280px;overflow-y:auto;border:1.5px solid #e0c8d8;border-radius:8px;background:#fafafa">
         <div class="ore-row" style="background:${ML};font-weight:700;color:#1a1a1a;border-radius:8px 8px 0 0"><span style="flex:0 0 24px"></span><span style="flex:1">Insegnamento</span><span style="flex:0 0 90px;text-align:center;font-size:11px">Max ore</span></div>
         ${insS.map(ins=>{const v=vmap[ins.id]||{};return`<div class="ore-row"><input type="checkbox" class="d-ins-cb" value="${ins.id}" ${v.checked?'checked':''} style="width:auto;accent-color:${M};flex:0 0 auto" onchange="toggleOreInput(this)"/><span style="flex:1;color:#222;font-size:12px">${escH(ins.nome)}</span><input type="number" class="ore-inp d-ore-inp" data-ins="${ins.id}" value="${v.maxOre!=null?v.maxOre:''}" min="1" placeholder="∞" style="${v.checked?'':'display:none'}"/></div>`;}).join('')}
@@ -830,14 +899,14 @@ function openDocModal(id){
   document.getElementById("dm-close").onclick=closeModal;document.getElementById("dm-cancel").onclick=closeModal;document.getElementById("dm-save").onclick=()=>saveDoc(id||"");
 }
 function toggleOreInput(cb){const inp=cb.closest(".ore-row")?.querySelector(".d-ore-inp");if(inp)inp.style.display=cb.checked?"":"none";}
-function saveDoc(id){
+async function saveDoc(id){
   const nome=(document.getElementById("d-nome")||{}).value?.trim();if(!nome){showErr("Il nome è obbligatorio");return;}
-  const cbs=[...document.querySelectorAll(".d-ins-cb:checked")];const insegnamenti=cbs.map(cb=>{const inp=cb.closest(".ore-row")?.querySelector(".d-ore-inp");const maxOre=inp&&inp.value?parseInt(inp.value):null;return{insId:cb.value,maxOre:isNaN(maxOre)?null:maxOre};});
-  if(id){S.docenti=S.docenti.map(d=>d.id===id?{...d,nome,insegnamenti}:d);showToast("Docente aggiornato!");}
-  else{if(S.docenti.find(d=>d.nome.toLowerCase()===nome.toLowerCase())){showErr("Docente già esistente");return;}S.docenti.push({id:uid(),nome,insegnamenti});showToast("Docente aggiunto!");}
-  saveState();closeModal();renderApp();
+  const cbs=[...document.querySelectorAll(".d-ins-cb:checked")];const ins=cbs.map(cb=>{const inp=cb.closest(".ore-row")?.querySelector(".d-ore-inp");const mo=inp&&inp.value?parseInt(inp.value):null;return{insId:cb.value,maxOre:isNaN(mo)?null:mo};});
+  if(id)S.docenti=S.docenti.map(d=>d.id===id?{...d,nome,insegnamenti:ins}:d);
+  else{if(S.docenti.find(d=>d.nome.toLowerCase()===nome.toLowerCase())){showErr("Docente già esistente");return;}S.docenti.push({id:uid(),nome,insegnamenti:ins});}
+  await saveToFB();closeModal();showToast(id?"Docente aggiornato!":"Docente aggiunto!");
 }
-function deleteDoc(id){openConfirm("Eliminare questo docente?",()=>{S.docenti=S.docenti.filter(d=>d.id!==id);saveState();renderApp();showToast("Docente eliminato.");});}
+function deleteDoc(id){openConfirm("Eliminare questo docente?",async()=>{S.docenti=S.docenti.filter(d=>d.id!==id);await saveToFB();showToast("Docente eliminato.");});}
 function openInsModal(id){
   const ins=id?S.insegnamenti.find(i=>i.id===id):null;
   openModal(`<div class="modal-box" style="max-width:420px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="color:${M};font-weight:800;font-size:15px">${ins?"Modifica":"Nuovo"} insegnamento</h3><button id="im-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button></div>
@@ -846,25 +915,27 @@ function openInsModal(id){
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px"><button id="im-cancel" class="btn btn-ghost">Annulla</button><button id="im-save" class="btn btn-primary">Salva</button></div></div>`);
   document.getElementById("im-close").onclick=closeModal;document.getElementById("im-cancel").onclick=closeModal;document.getElementById("im-save").onclick=()=>saveIns(id||"");
 }
-function saveIns(id){
+async function saveIns(id){
   const nome=(document.getElementById("i-nome")||{}).value?.trim();const lez=parseInt((document.getElementById("i-lez")||{}).value)||12;if(!nome){showErr("Il nome è obbligatorio");return;}
   if(id)S.insegnamenti=S.insegnamenti.map(i=>i.id===id?{...i,nome,lezioniAssegnate:lez}:i);else S.insegnamenti.push({id:uid(),nome,lezioniAssegnate:lez});
-  saveState();closeModal();renderApp();showToast(id?"Aggiornato!":"Insegnamento aggiunto!");
+  await saveToFB();closeModal();showToast(id?"Aggiornato!":"Insegnamento aggiunto!");
 }
-function deleteIns(id){openConfirm("Eliminare questo insegnamento?",()=>{S.insegnamenti=S.insegnamenti.filter(i=>i.id!==id);saveState();renderApp();showToast("Eliminato.");});}
+function deleteIns(id){openConfirm("Eliminare questo insegnamento?",async()=>{S.insegnamenti=S.insegnamenti.filter(i=>i.id!==id);await saveToFB();showToast("Eliminato.");});}
 
-/* ── Navbar + render principale ──────────────────────────────── */
+/* ── Navbar + render ─────────────────────────────────────────── */
 function renderApp(){
+  if(!FB_READY){showLoadingScreen();return;}
+  if(!S.sessioni.length&&ROLE!=="presidente"){showSetupScreen();return;}
   document.getElementById("root").innerHTML=`
   <div style="background:${M};color:#fff;padding:0 24px;display:flex;align-items:center;gap:20px;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(212,22,140,.35)">
     <div style="font-weight:800;font-size:15px">🎓 ${escH(S.corsoDiLaurea||"Gestionale Didattica")}</div>
     <div style="font-size:12px;opacity:.85">A.A. ${S.annoAccademico}</div>
-    <div style="margin-left:auto;display:flex;gap:8px" id="nav-btns"></div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center" id="nav-btns"></div>
   </div>
   <div style="max-width:1440px;margin:0 auto;padding:28px 20px">
     <div style="margin-bottom:22px">
       <h1 style="margin:0;font-size:22px;font-weight:800;color:${MD}">${ROLE==='docente'?"Inserimento Lezioni":"Dashboard Presidente"}</h1>
-      <p style="margin:5px 0 0;color:#555;font-size:13px">${ROLE==='docente'?"Seleziona il tuo nome e l'insegnamento, poi inserisci le lezioni nel tabellone.":"Gestisci sessioni, tabellone, insegnamenti e docenti."}</p>
+      <p style="margin:5px 0 0;color:#555;font-size:13px">${ROLE==='docente'?"Seleziona il tuo nome e l'insegnamento, poi inserisci le lezioni.":"Gestisci sessioni, tabellone, insegnamenti e docenti."}</p>
     </div>
     <div id="vc"></div>
   </div>`;
@@ -873,21 +944,14 @@ function renderApp(){
     b.style.cssText=`background:${ROLE===r?'#fff':'transparent'};color:${ROLE===r?M:'#fff'};border:2px solid #fff;border-radius:20px;padding:5px 16px;font-weight:800;font-size:12px;cursor:pointer;transition:all .15s`;
     b.addEventListener("click",()=>switchRole(r));document.getElementById("nav-btns").appendChild(b);
   });
-  // Pulsante export stato (solo presidente autenticato)
-  if(ROLE==="presidente"&&AUTH){
-    const expBtn=document.createElement("button");expBtn.className="btn btn-sm";
-    expBtn.style.cssText="background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.5);padding:5px 12px;font-size:12px";
-    expBtn.textContent="📤 Esporta stato per docenti";expBtn.addEventListener("click",exportStato);
-    document.getElementById("nav-btns").appendChild(expBtn);
-  }
   const vc=document.getElementById("vc");
   if(ROLE==="docente")renderVistaDocente(vc);else renderDashboard(vc);
 }
 function switchRole(r){ROLE=r;if(r==="presidente"&&!AUTH)AUTH=false;renderApp();}
 
 /* ── Avvio ───────────────────────────────────────────────────── */
-// Se non ci sono dati, mostra la schermata di benvenuto
-if(!S.sessioni.length){showWelcomeScreen();}else{renderApp();}
+showLoadingScreen();
+startRealtimeListener();
 </script>
 </body>
 </html>
