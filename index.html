@@ -514,18 +514,19 @@ function renderVistaDocente(cont){
   const insDispo=DOCSEL?insForDoc(DOCSEL):S.insegnamenti;
   const wrap=document.createElement("div");
 
-  // Calcola i docenti visibili per la sessione attiva (stessa logica di renderAnagrafiche)
-  let visDocIds;
+  // Docenti nel menu: se la sessione ha un import CSV usa solo quelli,
+  // altrimenti mostra tutti i docenti registrati (aggiunti manualmente dal presidente).
+  let docentiSessione;
   if(sa&&sa.docentiIds&&sa.docentiIds.length){
-    visDocIds=new Set(sa.docentiIds);
-  }else if(sa&&sa.lezioni&&sa.lezioni.length){
-    visDocIds=new Set(sa.lezioni.map(l=>{const d=S.docenti.find(x=>x.nome===l.docente);return d?d.id:null}).filter(Boolean));
+    // Sessione con import CSV: mostra solo i docenti di quella sessione
+    const visDocIds=new Set(sa.docentiIds);
+    docentiSessione=sortN(S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome));
   }else{
-    visDocIds=new Set(); // sessione vuota senza import: nessun docente predefinito
+    // Sessione senza import (creata manualmente): mostra tutti i docenti registrati
+    docentiSessione=sortN(S.docenti.map(d=>d.nome));
   }
-  const docentiSessione=sortN(S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome));
 
-  // Se DOCSEL non è più nella sessione attiva, resettalo
+  // Se DOCSEL non è presente nella lista corrente, resettalo
   if(DOCSEL&&!docentiSessione.includes(DOCSEL)){DOCSEL="";INSSEL="";}
 
   /* Barra selezione */
