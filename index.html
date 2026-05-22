@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Gestionale Didattica Interattiva — Scienze Motorie L-22</title>
+<title>Gestionale Didattica Interattiva</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:#fdf7fb;min-height:100vh}
@@ -17,11 +17,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#fdf7fb;min-height:1
 @keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;
   display:flex;align-items:center;justify-content:center;padding:16px}
-.modal-box{background:#fff;border-radius:14px;padding:24px 28px;max-width:620px;width:100%;
+.modal-box{background:#fff;border-radius:14px;padding:24px 28px;max-width:640px;width:100%;
   box-shadow:0 8px 40px rgba(212,22,140,.18);max-height:92vh;overflow-y:auto}
 .btn{display:inline-flex;align-items:center;gap:5px;border:none;border-radius:7px;font-weight:700;
-  cursor:pointer;font-size:13px;padding:8px 16px;transition:background .15s;
-  white-space:nowrap;font-family:inherit}
+  cursor:pointer;font-size:13px;padding:8px 16px;transition:background .15s;white-space:nowrap;font-family:inherit}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn-primary{background:#D4168C;color:#fff}.btn-primary:hover:not(:disabled){background:#9A0D65}
 .btn-outline{background:#fff;border:2px solid #D4168C;color:#D4168C}.btn-outline:hover{background:#F7D6EE}
@@ -31,6 +30,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#fdf7fb;min-height:1
 .btn-info{background:#2980b9;color:#fff}.btn-info:hover{background:#1a5f7a}
 .btn-warn{background:#e67e22;color:#fff}.btn-warn:hover{background:#ca6f1e}
 .btn-teal{background:#16a085;color:#fff}.btn-teal:hover{background:#117a60}
+.btn-violet{background:#8e44ad;color:#fff}.btn-violet:hover{background:#6c3483}
 .btn-sm{padding:6px 13px;font-size:12px}
 .btn-xs{padding:4px 9px;font-size:11px}
 .kpi-card{background:#fff;border:1px solid #f0e0ea;border-radius:10px;padding:14px 16px}
@@ -38,8 +38,7 @@ input,select,textarea{border:1.5px solid #EAA0D0;border-radius:7px;padding:7px 1
   width:100%;outline:none;font-family:inherit;background:#fff;color:#222}
 input:focus,select:focus{border-color:#D4168C;box-shadow:0 0 0 3px rgba(212,22,140,.1)}
 label.lbl{font-size:12px;color:#444;display:block;margin-bottom:5px;font-weight:700}
-.tab-nav{display:flex;gap:3px;background:#F7D6EE;border-radius:10px;padding:4px;
-  margin-bottom:24px;flex-wrap:wrap}
+.tab-nav{display:flex;gap:3px;background:#F7D6EE;border-radius:10px;padding:4px;margin-bottom:24px;flex-wrap:wrap}
 .tab-nav button{flex:1;border:none;background:transparent;border-radius:7px;padding:9px 12px;
   font-weight:800;font-size:12px;cursor:pointer;color:#9A0D65;transition:all .15s;min-width:80px}
 .tab-nav button.active{background:#D4168C;color:#fff;box-shadow:0 2px 8px rgba(212,22,140,.3)}
@@ -56,71 +55,31 @@ label.lbl{font-size:12px;color:#444;display:block;margin-bottom:5px;font-weight:
 .badge{display:inline-block;font-size:10px;font-weight:800;border-radius:5px;padding:2px 8px;color:#fff}
 .section-card{background:#fff;border-radius:12px;border:1px solid #f0e0ea;padding:16px 18px;margin-bottom:18px}
 .action-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
-.ore-row{display:flex;align-items:center;gap:10px;padding:6px 10px;
-  border-bottom:1px solid #f5edf5;font-size:12px;color:#222}
+.ore-row{display:flex;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid #f5edf5;font-size:12px;color:#222}
 .ore-row:last-child{border-bottom:none}
 .ore-inp{width:70px!important;padding:4px 8px!important;font-size:12px!important}
+.sync-banner{background:linear-gradient(135deg,#8e44ad,#D4168C);color:#fff;border-radius:10px;
+  padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <div id="toast-container"></div>
 <div id="modal-container"></div>
-
 <script>
 /* ═══════════════════════════════════════════════════════════════════
-   GESTIONALE DIDATTICA INTERATTIVA — v6 standalone
-   Scienze Motorie L-22 | Ateneo Online
+   GESTIONALE DIDATTICA INTERATTIVA — v7
    ═══════════════════════════════════════════════════════════════════ */
-
 const M="#D4168C",ML="#F7D6EE",MD="#9A0D65",MM="#EAA0D0";
-
-const TIME_SLOTS=[
-  "07:00-08:00","08:00-09:00","09:00-10:00","10:00-11:00","11:00-12:00",
+const TIME_SLOTS=["07:00-08:00","08:00-09:00","09:00-10:00","10:00-11:00","11:00-12:00",
   "12:00-13:00","13:00-14:00","14:00-15:00","15:00-16:00","16:00-17:00",
-  "17:00-18:00","18:00-19:00","19:00-20:00","20:00-21:00","21:00-22:00"
-];
+  "17:00-18:00","18:00-19:00","19:00-20:00","20:00-21:00","21:00-22:00"];
 const DAYS_IT=["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
-const ICOL=[
-  "#F7D6EE","#D6EEF7","#D6F7E8","#F7EED6","#EED6F7","#F7D6D6","#D6D6F7",
-  "#EEF7D6","#F7F0D6","#D6F7F7","#F0D6F7","#D6F7D6","#F7D6F0","#D6EAF7",
-  "#F7E8D6","#E8F7D6","#F7D6E8","#D6F0F7","#F7F7D6","#E0D6F7","#D6F7EA",
-  "#F7D9D6","#D6F7F0","#F5F7D6","#D6DCF7"
-];
+const ICOL=["#F7D6EE","#D6EEF7","#D6F7E8","#F7EED6","#EED6F7","#F7D6D6","#D6D6F7","#EEF7D6",
+  "#F7F0D6","#D6F7F7","#F0D6F7","#D6F7D6","#F7D6F0","#D6EAF7","#F7E8D6","#E8F7D6",
+  "#F7D6E8","#D6F0F7","#F7F7D6","#E0D6F7","#D6F7EA","#F7D9D6","#D6F7F0","#F5F7D6","#D6DCF7"];
 
-const INS0=[
-  "Fisiologia dello Sport","Anatomia Umana",
-  "Nutrizione nello sportivo e nelle varie fasi della vita",
-  "Igiene e valutazione dei bisogni di salute",
-  "Chinesiologia di Base e Riabilitazione Posturale",
-  "Metodologie per la ricerca applicate alle scienze motorie-sportive",
-  "Tecnologie dello Sport e Fitness 1","Tecnologie dello Sport e Fitness 2",
-  "Attività Motoria Preventiva e Compensativa 2",
-  "Attività Motoria Preventiva e Compensativa 1",
-  "Diritto europeo dello sport","Psicologia Generale",
-  "Teorie, metodologie e didattiche dell'educazione motoria",
-  "Metodi e didattiche degli sport individuali e di squadra",
-  "Lingua francese","Sociologia generale","Pedagogia del gioco e dello sport",
-  "Psicologia Dinamica","Psicologia dello sviluppo","Diritto amministrativo sportivo",
-  "Nutrizione clinica e dietetica applicata allo sport",
-  "Teorie e Metodologie dell'Allenamento","Idoneità di lingua inglese",
-  "Riabilitazione Masticatoria","Metodologia della valutazione motoria"
-];
-
-const DOC0=[
-  "Agostino Carbone","Agnese Cretella","Angela Correra","Annalisa Raffone",
-  "Anthinea Ambretti","Antonio De Fano","Andrea Tinterri","Carlo Castagna",
-  "Chiara Montini","Claudia Vetrani","Domenico Monacis","Emanuele D'Angelo",
-  "Emahnuel Troisi Lopez","Eugenia Treglia","Francesco Peluso Cassese",
-  "Gaetano Altavilla","Gaetano Raiola","Girolamo Di Maio","Giovanni Battista Menchini Fabris",
-  "Giuseppina Martella","Grazia De Angelis","LUIGI BARREA","Lofrano Giusy",
-  "Mariagrazia D'Ippolito","Mariarosaria Negri","PISCITELLI PRISCO",
-  "Pierpaolo Sansone","Pompilio Cusano","Ria Demetrio","Roberta Minino",
-  "Romeo Tigre","SILVIA ANGELILLO","Simone Ciaccioni","Stefania Cataldi",
-  "Stefania D'Ascenzo","Stefano Triberti","Tommaso Boldrini"
-];
-
-/* ── Utilità ─────────────────────────────────────────────────────── */
+/* ── Utilità ─────────────────────────────────────────────────── */
 function uid(){return'x'+Math.random().toString(36).slice(2)+Date.now().toString(36)}
 function fmtDate(d){return d.toISOString().split("T")[0]}
 function isoDisp(iso){if(!iso)return"";const[y,m,day]=iso.split("-");return`${day}/${m}/${y}`}
@@ -132,45 +91,33 @@ function escH(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
 function escA(s){return String(s||"").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}
 function generateWeeks(start,end){
   const weeks=[],endD=new Date(end);let d=new Date(start);
-  while(d<=endD){
-    const w=[];
-    for(let i=0;i<7;i++){const dd=new Date(d);dd.setDate(dd.getDate()+i);if(dd<=endD)w.push(dd)}
-    weeks.push(w);d.setDate(d.getDate()+7);
-  }
+  while(d<=endD){const w=[];for(let i=0;i<7;i++){const dd=new Date(d);dd.setDate(dd.getDate()+i);if(dd<=endD)w.push(dd)}weeks.push(w);d.setDate(d.getDate()+7)}
   return weeks;
 }
 
-/* ── Stato iniziale ──────────────────────────────────────────────── */
-function initState(){
-  const sid=uid();
-  return{
-    insegnamenti:INS0.map(n=>({id:uid(),nome:n,lezioniAssegnate:12})),
-    docenti:DOC0.map(n=>({id:uid(),nome:n,insegnamenti:[]})),
-    sessioni:[{
-      id:sid,nome:"Settembre–Dicembre 2025",
-      dataInizio:"2025-09-01",dataFine:"2025-12-31",
-      visibileDocenti:true,modificabileDocenti:true,lezioni:[]
-    }],
-    sessioneAttiva:sid,
-    annoAccademico:"2025-2026",
-    corsoDiLaurea:"Scienze Motorie L-22"
-  };
+/* ── Stato ───────────────────────────────────────────────────── */
+const LS_KEY="gestionale_didattica_v7";
+function emptyState(){
+  return{insegnamenti:[],docenti:[],sessioni:[],sessioneAttiva:"",annoAccademico:"2025-2026",corsoDiLaurea:"Scienze Motorie L-22"};
 }
 function loadState(){
-  try{const r=localStorage.getItem("gestionale_didattica");if(r)return JSON.parse(r)}catch{}
-  return initState();
+  try{const r=localStorage.getItem(LS_KEY);if(r){const p=JSON.parse(r);return{insegnamenti:p.insegnamenti||[],docenti:p.docenti||[],sessioni:p.sessioni||[],sessioneAttiva:p.sessioneAttiva||"",annoAccademico:p.annoAccademico||"2025-2026",corsoDiLaurea:p.corsoDiLaurea||"Scienze Motorie L-22"};}}catch{}
+  return emptyState();
 }
 function saveState(){
-  try{localStorage.setItem("gestionale_didattica",JSON.stringify(S))}catch{}
+  try{localStorage.setItem(LS_KEY,JSON.stringify({insegnamenti:S.insegnamenti,docenti:S.docenti,sessioni:S.sessioni,sessioneAttiva:S.sessioneAttiva,annoAccademico:S.annoAccademico,corsoDiLaurea:S.corsoDiLaurea}));}catch{}
 }
 
 let S=loadState();
 let ROLE="docente",AUTH=false,DOCSEL="",INSSEL="",DTAB="overview",DFILT="tutti",TF_DOC="";
 
-/* ── Selettori dati ──────────────────────────────────────────────── */
-function getSA(){return S.sessioni.find(s=>s.id===S.sessioneAttiva)||S.sessioni[0]||null}
-function getLZ(){const sa=getSA();return sa?sa.lezioni:[]}
-function countLZ(nome){const sa=getSA();return sa?sa.lezioni.filter(l=>l.insegnamento===nome).length:0}
+// Assicura che sessioneAttiva punti a una sessione esistente
+(function(){if(S.sessioni.length&&!S.sessioni.find(s=>s.id===S.sessioneAttiva))S.sessioneAttiva=S.sessioni[0].id;})();
+
+/* ── Selettori ───────────────────────────────────────────────── */
+function getSA(){if(!S.sessioni.length)return null;return S.sessioni.find(s=>s.id===S.sessioneAttiva)||S.sessioni[0];}
+function getLZ(){const sa=getSA();return sa?sa.lezioni:[];}
+function countLZ(nome){const sa=getSA();return sa?sa.lezioni.filter(l=>l.insegnamento===nome).length:0;}
 function insForDoc(docNome){
   const d=S.docenti.find(x=>x.nome===docNome);
   if(!d||!d.insegnamenti||!d.insegnamenti.length)return S.insegnamenti;
@@ -181,245 +128,221 @@ function maxOreForDocIns(docNome,insNome){
   const d=S.docenti.find(x=>x.nome===docNome);
   if(!d||!d.insegnamenti||!d.insegnamenti.length)return null;
   const ins=S.insegnamenti.find(i=>i.nome===insNome);if(!ins)return null;
-  const entry=d.insegnamenti.find(x=>x.insId===ins.id);
-  return entry?(entry.maxOre??null):null;
+  const e=d.insegnamenti.find(x=>x.insId===ins.id);return e?(e.maxOre??null):null;
 }
-function oreDocIns(docNome,insNome){
-  const sa=getSA();if(!sa)return 0;
-  return sa.lezioni.filter(l=>l.docente===docNome&&l.insegnamento===insNome).length;
-}
+function oreDocIns(docNome,insNome){const sa=getSA();if(!sa)return 0;return sa.lezioni.filter(l=>l.docente===docNome&&l.insegnamento===insNome).length;}
 function checkSpazio(docNome,insNome,nOre){
-  const ins=S.insegnamenti.find(i=>i.nome===insNome);
-  if(!ins)return"Insegnamento non trovato.";
+  const ins=S.insegnamenti.find(i=>i.nome===insNome);if(!ins)return"Insegnamento non trovato.";
   const gUsato=countLZ(insNome);
-  if(gUsato+nOre>ins.lezioniAssegnate)
-    return`L'insegnamento "${insNome}" ha raggiunto il limite globale di ${ins.lezioniAssegnate} ore (usate: ${gUsato}).`;
+  if(gUsato+nOre>ins.lezioniAssegnate)return`L'insegnamento "${insNome}" ha raggiunto il limite globale di ${ins.lezioniAssegnate} ore (usate: ${gUsato}).`;
   const maxOre=maxOreForDocIns(docNome,insNome);
-  if(maxOre!=null){
-    const dUsato=oreDocIns(docNome,insNome);
-    if(dUsato+nOre>maxOre)
-      return`Hai raggiunto il limite di ${maxOre} ore assegnate per "${insNome}" (inserite: ${dUsato}).`;
-  }
+  if(maxOre!=null){const dUsato=oreDocIns(docNome,insNome);if(dUsato+nOre>maxOre)return`Hai raggiunto il limite di ${maxOre} ore assegnate per "${insNome}" (inserite: ${dUsato}).`;}
   return null;
 }
 
-/* ── Toast ───────────────────────────────────────────────────────── */
-function showToast(msg,isErr){
-  const el=document.createElement("div");
-  el.className="toast"+(isErr?" err":"");el.textContent=msg;
-  document.getElementById("toast-container").appendChild(el);
-  setTimeout(()=>el.remove(),3500);
+/* ── UI helpers ──────────────────────────────────────────────── */
+function showToast(msg,isErr){const el=document.createElement("div");el.className="toast"+(isErr?" err":"");el.textContent=msg;document.getElementById("toast-container").appendChild(el);setTimeout(()=>el.remove(),3500);}
+function showErr(msg){showToast(msg,true);}
+function openModal(html){document.getElementById("modal-container").innerHTML=`<div class="modal-overlay" id="moverlay">${html}</div>`;document.getElementById("moverlay").addEventListener("click",e=>{if(e.target.id==="moverlay")closeModal();});}
+function closeModal(){document.getElementById("modal-container").innerHTML="";}
+function openConfirm(msg,onYes,yesLabel,yesClass){
+  const cid=uid();(window._confirmCb=window._confirmCb||{})[cid]=onYes;
+  openModal(`<div class="modal-box" style="max-width:400px"><div style="font-size:22px;text-align:center;margin-bottom:14px">⚠️</div>
+    <p style="font-size:14px;color:#222;text-align:center;margin-bottom:22px;line-height:1.5">${escH(msg)}</p>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button id="conf-no" class="btn btn-ghost">Annulla</button>
+      <button id="conf-yes" class="btn ${yesClass||'btn-danger'}">${yesLabel||'Sì, elimina'}</button>
+    </div></div>`);
+  document.getElementById("conf-no").onclick=closeModal;
+  document.getElementById("conf-yes").onclick=()=>{closeModal();const cb=(window._confirmCb||{})[cid];if(cb)cb();};
 }
-function showErr(msg){showToast(msg,true)}
+function triggerDownload(content,filename,mime){
+  const blob=new Blob([content],{type:mime});const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;a.style.display="none";
+  document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},300);
+}
 
-/* ── Modal ───────────────────────────────────────────────────────── */
-function openModal(html){
-  document.getElementById("modal-container").innerHTML=
-    `<div class="modal-overlay" id="moverlay">${html}</div>`;
-  document.getElementById("moverlay").addEventListener("click",e=>{
-    if(e.target.id==="moverlay")closeModal();
+/* ══════════════════════════════════════════════════════════════
+   SINCRONIZZAZIONE DATI — Export/Import JSON stato
+   Il presidente esporta lo stato completo come file JSON.
+   I docenti importano il file JSON nel loro browser.
+   ══════════════════════════════════════════════════════════════ */
+function exportStato(){
+  const payload=JSON.stringify({insegnamenti:S.insegnamenti,docenti:S.docenti,sessioni:S.sessioni,sessioneAttiva:S.sessioneAttiva,annoAccademico:S.annoAccademico,corsoDiLaurea:S.corsoDiLaurea,_v:7,_ts:Date.now()});
+  const nome=S.corsoDiLaurea.replace(/[^a-zA-Z0-9]/g,'_');
+  triggerDownload(payload,`stato_${nome}_${new Date().toISOString().slice(0,10)}.json`,"application/json;charset=utf-8");
+  showToast("Stato esportato! Condividi il file con i docenti.");
+}
+
+function importStato(file,onDone){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const parsed=JSON.parse(e.target.result);
+      if(!parsed.sessioni||!Array.isArray(parsed.sessioni))throw new Error("Formato non valido");
+      S.insegnamenti=parsed.insegnamenti||[];
+      S.docenti=parsed.docenti||[];
+      S.sessioni=parsed.sessioni||[];
+      S.sessioneAttiva=parsed.sessioneAttiva||S.sessioni[0]?.id||"";
+      S.annoAccademico=parsed.annoAccademico||"2025-2026";
+      S.corsoDiLaurea=parsed.corsoDiLaurea||"Scienze Motorie L-22";
+      DOCSEL="";INSSEL="";
+      saveState();
+      if(onDone)onDone(true);
+    }catch(err){if(onDone)onDone(false,err.message);}
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+/* ── Schermata di benvenuto per nuovi utenti ─────────────────── */
+function showWelcomeScreen(){
+  document.getElementById("root").innerHTML=`
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fdf7fb 0%,#F7D6EE 100%);padding:20px">
+    <div style="background:#fff;border-radius:20px;padding:40px 36px;max-width:500px;width:100%;box-shadow:0 12px 48px rgba(212,22,140,.18);text-align:center">
+      <div style="font-size:52px;margin-bottom:12px">🎓</div>
+      <h1 style="color:${MD};font-size:22px;font-weight:800;margin-bottom:8px">Gestionale Didattica Interattiva</h1>
+      <p style="color:#666;font-size:14px;margin-bottom:28px;line-height:1.6">
+        Nessun dato trovato nel tuo browser.<br>
+        Importa il file <b>stato_*.json</b> fornito dal Presidente del CdS, oppure accedi come Presidente per configurare il sistema.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="background:${ML};border-radius:12px;padding:18px">
+          <div style="font-weight:800;color:${MD};margin-bottom:8px;font-size:14px">📥 Sono un docente</div>
+          <p style="font-size:12px;color:#555;margin-bottom:12px">Carica il file JSON ricevuto dal Presidente</p>
+          <input type="file" id="welcome-file" accept=".json" style="margin-bottom:10px"/>
+          <button class="btn btn-primary" style="width:100%" id="welcome-import-btn">Carica e accedi</button>
+        </div>
+        <div style="border-top:1px solid #f0e0ea;padding-top:16px">
+          <div style="font-weight:800;color:#555;margin-bottom:8px;font-size:14px">🔐 Sono il Presidente</div>
+          <button class="btn btn-ghost" style="width:100%" id="welcome-pres-btn">Accedi come Presidente (configura il sistema)</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById("welcome-import-btn").addEventListener("click",()=>{
+    const f=document.getElementById("welcome-file").files[0];
+    if(!f){showErr("Seleziona prima un file JSON");return;}
+    importStato(f,(ok,err)=>{
+      if(ok){renderApp();showToast("Dati importati! Benvenuto.");}
+      else{showErr("Errore importazione: "+(err||"file non valido"));}
+    });
+  });
+  document.getElementById("welcome-pres-btn").addEventListener("click",()=>{
+    // Crea uno stato vuoto, accedi come presidente
+    ROLE="presidente";AUTH=false;
+    renderApp();
   });
 }
-function closeModal(){document.getElementById("modal-container").innerHTML=""}
 
-/* ── Download nativo (funziona su Vercel/browser normale) ────────── */
-function triggerDownload(content,filename,mime){
-  const blob=new Blob([content],{type:mime});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;a.download=filename;a.style.display="none";
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url)},300);
-}
-
-/* ── Export ICS ──────────────────────────────────────────────────── */
+/* ── Export ICS ──────────────────────────────────────────────── */
 function exportICS(docNome){
-  const sa=getSA();if(!sa){showErr("Nessuna sessione attiva");return}
+  const sa=getSA();if(!sa){showErr("Nessuna sessione attiva");return;}
   const lzDoc=sa.lezioni.filter(l=>l.docente===docNome);
-  if(!lzDoc.length){showErr("Nessuna lezione trovata per "+docNome);return}
-  const lines=[
-    "BEGIN:VCALENDAR","VERSION:2.0",
-    "PRODID:-//Gestionale Didattica Interattiva//IT",
-    "CALSCALE:GREGORIAN","METHOD:PUBLISH",
-    "X-WR-CALNAME:Lezioni "+docNome,
-    "X-WR-TIMEZONE:Europe/Rome"
-  ];
+  if(!lzDoc.length){showErr("Nessuna lezione trovata per "+docNome);return;}
+  const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Gestionale Didattica//IT","CALSCALE:GREGORIAN","METHOD:PUBLISH","X-WR-CALNAME:Lezioni "+docNome,"X-WR-TIMEZONE:Europe/Rome"];
   lzDoc.forEach(l=>{
-    const[startT,endT]=l.fasciaOraria.split("-");
-    const[y,mo,dd]=l.data.split("-");
-    const[sh,sm]=startT.split(":");
-    const[eh,em]=endT.split(":");
-    lines.push(
-      "BEGIN:VEVENT",
-      "UID:"+uid()+"@gestionale",
-      "DTSTAMP:"+new Date().toISOString().replace(/[-:.Z]/g,'').slice(0,15)+"Z",
-      "DTSTART;TZID=Europe/Rome:"+y+mo+dd+"T"+sh+sm+"00",
-      "DTEND;TZID=Europe/Rome:"+y+mo+dd+"T"+eh+em+"00",
-      "SUMMARY:"+l.insegnamento+" - "+l.titolo,
-      "DESCRIPTION:Docente: "+l.docente+"\\nInsegnamento: "+l.insegnamento+"\\nTitolo: "+l.titolo,
-      "LOCATION:Videoconferenza online",
-      "STATUS:CONFIRMED",
-      "END:VEVENT"
-    );
+    const[sT,eT]=l.fasciaOraria.split("-");const[y,mo,dd]=l.data.split("-");const[sh,sm]=sT.split(":");const[eh,em]=eT.split(":");
+    lines.push("BEGIN:VEVENT","UID:"+uid()+"@gestionale","DTSTAMP:"+new Date().toISOString().replace(/[-:.Z]/g,'').slice(0,15)+"Z",
+      "DTSTART;TZID=Europe/Rome:"+y+mo+dd+"T"+sh+sm+"00","DTEND;TZID=Europe/Rome:"+y+mo+dd+"T"+eh+em+"00",
+      "SUMMARY:"+l.insegnamento+" - "+l.titolo,"DESCRIPTION:Docente: "+l.docente+"\\nInsegnamento: "+l.insegnamento,
+      "LOCATION:Videoconferenza online","STATUS:CONFIRMED","END:VEVENT");
   });
   lines.push("END:VCALENDAR");
-  triggerDownload(
-    lines.join("\r\n"),
-    "lezioni_"+docNome.replace(/[^a-zA-Z0-9]/g,'_')+".ics",
-    "text/calendar;charset=utf-8"
-  );
+  triggerDownload(lines.join("\r\n"),"lezioni_"+docNome.replace(/[^a-zA-Z0-9]/g,'_')+".ics","text/calendar;charset=utf-8");
   showToast(lzDoc.length+" lezioni esportate!");
 }
 
-/* ── Export CSV docenti (filtrato per sessione attiva) ───────────── */
+/* ── Export CSV docenti ──────────────────────────────────────── */
 function exportDocentiCSV(){
   const sa=getSA();const lz=sa?sa.lezioni:[];
-
-  // Filtra insegnamenti e docenti della sessione attiva (stessa logica di renderAnagrafiche)
   let visInsIds,visDocIds;
-  if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length){
-    visInsIds=new Set(sa.insegnamentiIds);
-    visDocIds=new Set(sa.docentiIds||[]);
-  }else if(sa&&lz.length){
+  if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length){visInsIds=new Set(sa.insegnamentiIds);visDocIds=new Set(sa.docentiIds||[]);}
+  else if(sa&&lz.length){
     visInsIds=new Set(lz.map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));
     visDocIds=new Set(lz.map(l=>{const d=S.docenti.find(x=>x.nome===l.docente);return d?d.id:null}).filter(Boolean));
-  }else{
-    visInsIds=new Set();
-    visDocIds=new Set();
-  }
+  }else{visInsIds=new Set();visDocIds=new Set();}
   const insOrd=sortN(S.insegnamenti.filter(i=>visInsIds.has(i.id)).map(i=>i.nome));
   const docOrd=sortN(S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome));
   const rows=[["Docente","Totale ore",...insOrd]];
-  docOrd.forEach(docNome=>{
-    const orePerIns={};
-    insOrd.forEach(n=>{orePerIns[n]=lz.filter(l=>l.docente===docNome&&l.insegnamento===n).length});
-    rows.push([docNome,Object.values(orePerIns).reduce((a,b)=>a+b,0),...insOrd.map(n=>orePerIns[n])]);
-  });
-  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
-  triggerDownload("\uFEFF"+csv,"ore_docenti.csv","text/csv;charset=utf-8");
-  showToast("CSV ore docenti esportato!");
+  docOrd.forEach(n=>{const op={};insOrd.forEach(x=>{op[x]=lz.filter(l=>l.docente===n&&l.insegnamento===x).length;});rows.push([n,Object.values(op).reduce((a,b)=>a+b,0),...insOrd.map(x=>op[x])]);});
+  triggerDownload("\uFEFF"+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n"),"ore_docenti.csv","text/csv;charset=utf-8");
+  showToast("CSV esportato!");
 }
 
-/* ── Export CSV sessione ─────────────────────────────────────────── */
 function exportSessCSV(id){
   const sess=S.sessioni.find(s=>s.id===id);if(!sess)return;
   const rows=[["Data","Giorno","Fascia Oraria","Docente","Insegnamento","Titolo"]];
   sess.lezioni.forEach(l=>rows.push([l.data,l.giornoSettimana,l.fasciaOraria,l.docente,l.insegnamento,l.titolo]));
-  const csv=rows.map(r=>r.map(c=>`"${String(c||"").replace(/"/g,'""')}"`).join(",")).join("\n");
-  triggerDownload("\uFEFF"+csv,sess.nome.replace(/[\s\/]/g,'_')+".csv","text/csv;charset=utf-8");
+  triggerDownload("\uFEFF"+rows.map(r=>r.map(c=>`"${String(c||"").replace(/"/g,'""')}"`).join(",")).join("\n"),sess.nome.replace(/[\s\/]/g,'_')+".csv","text/csv;charset=utf-8");
   showToast("CSV esportato!");
 }
 
-/* ── Slot modal ──────────────────────────────────────────────────── */
+/* ── Slot modal ──────────────────────────────────────────────── */
 function openSlotModal(iso,slot,dayName,lezId,pm){
   const sa=getSA();if(!sa)return;
-  if(!pm&&!sa.modificabileDocenti){showErr("Sessione non modificabile dai docenti");return}
+  if(!pm&&!sa.modificabileDocenti){showErr("Sessione non modificabile dai docenti");return;}
   const slotMap=buildSlotMap(sa.lezioni);
   const lez=lezId?sa.lezioni.find(l=>l.id===lezId):null;
-  const ni=TIME_SLOTS.indexOf(slot)+1;
-  const ns=TIME_SLOTS[ni];const nf=ns&&!slotMap[sk(iso,ns)];
-  const doc=pm?(lez?.docente||""):DOCSEL;
-  const insNome=pm?(lez?.insegnamento||""):INSSEL;
+  const ni=TIME_SLOTS.indexOf(slot)+1;const ns=TIME_SLOTS[ni];const nf=ns&&!slotMap[sk(iso,ns)];
+  const doc=pm?(lez?.docente||""):DOCSEL;const insNome=pm?(lez?.insegnamento||""):INSSEL;
   const iObj=S.insegnamenti.find(i=>i.nome===insNome);
-  const ins_cnt=iObj?countLZ(iObj.nome):0;
-  const ins_ass=iObj?iObj.lezioniAssegnate:12;
-  const maxOre=pm?null:maxOreForDocIns(doc,insNome);
-  const oreDoc=!pm?oreDocIns(doc,insNome):0;
-  const spazioGlob=ins_ass-ins_cnt;
-  const spazioDoc=maxOre!=null?(maxOre-oreDoc):spazioGlob;
-  const spazio=Math.min(spazioGlob,spazioDoc);
+  const ins_cnt=iObj?countLZ(iObj.nome):0;const ins_ass=iObj?iObj.lezioniAssegnate:12;
+  const maxOre=pm?null:maxOreForDocIns(doc,insNome);const oreDoc=!pm?oreDocIns(doc,insNome):0;
+  const spazio=Math.min(ins_ass-ins_cnt,maxOre!=null?(maxOre-oreDoc):(ins_ass-ins_cnt));
   const adocs=sortN(S.docenti.map(d=>d.nome));
-  const ctxId=uid();
-  (window._slotCtx=window._slotCtx||{})[ctxId]={iso,slot,dayName,lezId,pm,ns:ns||""};
-
+  const ctxId=uid();(window._slotCtx=window._slotCtx||{})[ctxId]={iso,slot,dayName,lezId,pm,ns:ns||""};
   openModal(`<div class="modal-box">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <h3 style="color:${M};font-size:15px;font-weight:800">
-        ${lez?"Modifica lezione":`Inserisci — ${isoDisp(iso)} ${slot}`}</h3>
-      <button id="btn-cs" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999;line-height:1">×</button>
-    </div>
+      <h3 style="color:${M};font-size:15px;font-weight:800">${lez?"Modifica lezione":`Inserisci — ${isoDisp(iso)} ${slot}`}</h3>
+      <button id="btn-cs" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999;line-height:1">×</button></div>
     ${pm?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div><label class="lbl">Docente</label>
-        <select id="m-doc"><option value="">— seleziona —</option>
-          ${adocs.map(d=>`<option value="${escA(d)}"${lez?.docente===d?' selected':''}>${escH(d)}</option>`).join('')}
-        </select></div>
-      <div><label class="lbl">Insegnamento</label>
-        <select id="m-ins"><option value="">— seleziona —</option>
-          ${S.insegnamenti.map(i=>`<option value="${escA(i.nome)}"${lez?.insegnamento===i.nome?' selected':''}>${escH(i.nome)}</option>`).join('')}
-        </select></div>
+      <div><label class="lbl">Docente</label><select id="m-doc"><option value="">—</option>${adocs.map(d=>`<option value="${escA(d)}"${lez?.docente===d?' selected':''}>${escH(d)}</option>`).join('')}</select></div>
+      <div><label class="lbl">Insegnamento</label><select id="m-ins"><option value="">—</option>${S.insegnamenti.map(i=>`<option value="${escA(i.nome)}"${lez?.insegnamento===i.nome?' selected':''}>${escH(i.nome)}</option>`).join('')}</select></div>
     </div>`:`<div style="background:${ML};border-radius:8px;padding:9px 13px;margin-bottom:14px;font-size:12px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">
-      <b style="color:${MD}">${escH(insNome)}</b>
-      <span style="color:#444">Globale: ${ins_cnt}/${ins_ass}</span>
+      <b style="color:${MD}">${escH(insNome)}</b><span style="color:#444">Globale: ${ins_cnt}/${ins_ass}</span>
       ${maxOre!=null?`<span style="color:#444">Tue ore: ${oreDoc}/${maxOre}</span>`:''}
       ${spazio<=0?`<span style="background:#e24b4a;color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:2px 6px">LIMITE</span>`:''}
     </div>`}
-    <div style="margin-bottom:14px">
-      <label class="lbl">Titolo della lezione *</label>
-      <input type="text" id="m-titolo" value="${escA(lez?.titolo||'')}" placeholder="Inserisci il titolo..."/>
-    </div>
+    <div style="margin-bottom:14px"><label class="lbl">Titolo della lezione *</label>
+      <input type="text" id="m-titolo" value="${escA(lez?.titolo||'')}" placeholder="Inserisci il titolo..."/></div>
     ${(!lez&&nf)?`<div style="margin-bottom:14px;padding:11px 13px;background:#fdf7fb;border-radius:8px;border:1px dashed ${MM}">
       <label style="display:flex;align-items:center;gap:9px;cursor:pointer;font-weight:700;font-size:13px;color:${MD};margin-bottom:0">
-        <input type="checkbox" id="m-cc" ${(!pm&&spazio<2)?'disabled':''}/>
-        Aggiungi ora consecutiva (${ns}) — conta come 2 lezioni
-      </label>
+        <input type="checkbox" id="m-cc" ${(!pm&&spazio<2)?'disabled':''}/>Aggiungi ora consecutiva (${ns}) — conta come 2 lezioni</label>
       ${(!pm&&spazio<2)?`<p style="font-size:11px;color:#e24b4a;margin:6px 0 0">Ore insufficienti per la consecutiva.</p>`:''}
-      <div id="m-ccbox" style="display:none;margin-top:10px">
-        <label class="lbl">Titolo ora consecutiva (opzionale)</label>
-        <input type="text" id="m-titolo2" placeholder="Stesso titolo se vuoto"/>
-      </div>
-    </div>`:''}
+      <div id="m-ccbox" style="display:none;margin-top:10px"><label class="lbl">Titolo ora consecutiva (opzionale)</label>
+        <input type="text" id="m-titolo2" placeholder="Stesso titolo se vuoto"/></div></div>`:''}
     <div id="slot-err" style="color:#c0392b;font-size:12px;font-weight:700;min-height:18px;margin-bottom:4px"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
       <div id="btn-del-slot"></div>
       <div style="display:flex;gap:10px">
         <button id="btn-cancel-slot" class="btn btn-ghost">Annulla</button>
-        <button id="btn-confirm-slot" class="btn btn-primary" ${!pm&&spazio<=0&&!lez?"disabled":""}>
-          ${lez?"Salva modifiche":"Conferma"}</button>
-      </div>
-    </div>
-  </div>`);
-
+        <button id="btn-confirm-slot" class="btn btn-primary" ${!pm&&spazio<=0&&!lez?"disabled":""}>${lez?"Salva modifiche":"Conferma"}</button>
+      </div></div></div>`);
   document.getElementById("btn-cs").onclick=closeModal;
   document.getElementById("btn-cancel-slot").onclick=closeModal;
-  const cb=document.getElementById("m-cc");
-  if(cb)cb.addEventListener("change",e=>{
-    document.getElementById("m-ccbox").style.display=e.target.checked?"block":"none";
-  });
-  if(lez){
-    const delBtn=document.createElement("button");
-    delBtn.className="btn btn-danger btn-sm";delBtn.textContent="🗑 Elimina";
-    delBtn.onclick=()=>deleteLZ(lez.id);
-    document.getElementById("btn-del-slot").appendChild(delBtn);
-  }
+  const cb=document.getElementById("m-cc");if(cb)cb.addEventListener("change",e=>{document.getElementById("m-ccbox").style.display=e.target.checked?"block":"none";});
+  if(lez){const db=document.createElement("button");db.className="btn btn-danger btn-sm";db.textContent="🗑 Elimina";db.onclick=()=>deleteLZ(lez.id);document.getElementById("btn-del-slot").appendChild(db);}
   document.getElementById("btn-confirm-slot").onclick=()=>saveSlot(ctxId);
 }
-
 function saveSlot(ctxId){
   const ctx=(window._slotCtx||{})[ctxId];if(!ctx)return;
   const{iso,slot,dayName,lezId,pm,ns}=ctx;
   const titolo=(document.getElementById("m-titolo")||{}).value?.trim();
   const doc=pm?(document.getElementById("m-doc")||{}).value:DOCSEL;
   const insNome=pm?(document.getElementById("m-ins")||{}).value:INSSEL;
-  if(!titolo){showErr("Il titolo è obbligatorio");return}
-  if(!doc||!insNome){showErr("Seleziona docente e insegnamento");return}
-  const cb=document.getElementById("m-cc");const addC=cb&&cb.checked;
-  const nOre=addC?2:1;
-  if(!pm&&!lezId){
-    const err=checkSpazio(doc,insNome,nOre);
-    if(err){const el=document.getElementById("slot-err");if(el)el.textContent=err;else showErr(err);return}
-  }
+  if(!titolo){showErr("Il titolo è obbligatorio");return;}
+  if(!doc||!insNome){showErr("Seleziona docente e insegnamento");return;}
+  const cb=document.getElementById("m-cc");const addC=cb&&cb.checked;const nOre=addC?2:1;
+  if(!pm&&!lezId){const err=checkSpazio(doc,insNome,nOre);if(err){const el=document.getElementById("slot-err");if(el)el.textContent=err;else showErr(err);return;}}
   const t2=(document.getElementById("m-titolo2")||{}).value?.trim()||titolo;
   const nuove=[{id:uid(),data:iso,fasciaOraria:slot,docente:doc,insegnamento:insNome,titolo,giornoSettimana:dayName}];
   if(addC&&ns)nuove.push({id:uid(),data:iso,fasciaOraria:ns,docente:doc,insegnamento:insNome,titolo:t2,giornoSettimana:dayName});
   const sa=getSA();if(!sa)return;
-  let lz=[...sa.lezioni];
-  if(lezId)lz=lz.filter(l=>l.id!==lezId);
-  nuove.forEach(n=>{if(!lz.find(x=>x.data===n.data&&x.fasciaOraria===n.fasciaOraria))lz.push(n)});
+  let lz=[...sa.lezioni];if(lezId)lz=lz.filter(l=>l.id!==lezId);
+  nuove.forEach(n=>{if(!lz.find(x=>x.data===n.data&&x.fasciaOraria===n.fasciaOraria))lz.push(n);});
   S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:lz}:s);
   saveState();closeModal();renderApp();showToast(lezId?"Lezione aggiornata!":"Lezione inserita!");
 }
-
 function deleteLZ(lezId){
   openConfirm("Eliminare questa lezione?",()=>{
     const sa=getSA();if(!sa)return;
@@ -428,407 +351,247 @@ function deleteLZ(lezId){
   });
 }
 
-/* ── Tabellone ───────────────────────────────────────────────────── */
+/* ── Tabellone ───────────────────────────────────────────────── */
 function renderTabellone(cont,pm,fdoc){
   const sess=getSA();
-  if(!sess){cont.innerHTML=`<p style="color:#888;padding:20px">Nessuna sessione.</p>`;return}
-  const lz=sess.lezioni;const slotMap=buildSlotMap(lz);
-  const weeks=generateWeeks(sess.dataInizio,sess.dataFine);
+  if(!sess){cont.innerHTML=`<p style="color:#888;padding:20px">Nessuna sessione.</p>`;return;}
+  const lz=sess.lezioni;const slotMap=buildSlotMap(lz);const weeks=generateWeeks(sess.dataInizio,sess.dataFine);
   const wrap=document.createElement("div");wrap.style.overflowX="auto";
   const table=document.createElement("table");table.style.cssText="border-collapse:collapse;min-width:900px";
   const thead=table.createTHead();const hr=thead.insertRow();
   [["Data","76px"],["Gg","26px"],...TIME_SLOTS.map(s=>[s,"70px"])].forEach(([txt,w])=>{
     const th=document.createElement("th");th.textContent=txt;
-    th.style.cssText=`background:${M};color:#fff;padding:5px 3px;min-width:${w};`+
-      `font-size:${txt.length>5?"8.5":"9"}px;font-weight:700;text-align:center`;
-    if(txt==="Data"){th.style.position="sticky";th.style.left="0";th.style.zIndex="2";th.style.padding="6px 8px"}
+    th.style.cssText=`background:${M};color:#fff;padding:5px 3px;min-width:${w};font-size:${txt.length>5?"8.5":"9"}px;font-weight:700;text-align:center`;
+    if(txt==="Data"){th.style.position="sticky";th.style.left="0";th.style.zIndex="2";th.style.padding="6px 8px";}
     hr.appendChild(th);
   });
   const tbody=table.createTBody();
-  weeks.forEach((week,wi)=>{
-    week.forEach((day,di)=>{
-      const iso=fmtDate(day);const isDom=di===6;
-      const rbg=isDom?"#fafafa":(wi%2===0?"#fff":"#fdf7fb");
-      const tr=tbody.insertRow();tr.style.background=rbg;
-      const tdD=tr.insertCell();tdD.textContent=isoDisp(iso);
-      tdD.style.cssText=`padding:4px 5px;font-weight:700;font-size:8.5px;color:#444;`+
-        `position:sticky;left:0;background:${rbg};z-index:1;border-right:2px solid ${ML}`;
-      const tdG=tr.insertCell();tdG.textContent=DAYS_IT[di].slice(0,3);
-      tdG.style.cssText=`padding:4px 3px;color:${isDom?"#ccc":"#777"};font-size:8.5px;text-align:center`;
-      TIME_SLOTS.forEach(slot=>{
-        const lez=slotMap[sk(iso,slot)];
-        // In vista docente (fdoc impostato, non pm):
-        //   - slot libero → cliccabile (verde al hover)
-        //   - slot del docente corrente → mostra lezione, cliccabile (per modifica)
-        //   - slot di altro docente → grigio, non cliccabile
-        // In vista presidente (pm) → tutto cliccabile, mostra filtro per fdoc
-        const isOwnSlot=!pm&&fdoc&&lez&&lez.docente===fdoc;
-        const isOthersSlot=!pm&&fdoc&&lez&&lez.docente!==fdoc;
-        const isFree=!lez;
-
-        let bg,borderColor,cursor,clickable;
-        if(isDom){
-          bg="#f5f5f5";borderColor="#f0e0ea";cursor="default";clickable=false;
-        }else if(pm){
-          // presidente: vista completa
-          const show=!fdoc||!lez||(lez.docente===fdoc);
-          bg=show&&lez?colorFor(S.insegnamenti,lez.insegnamento):"#fff";
-          borderColor=show&&lez?MM:"#f0e0ea";cursor="pointer";clickable=true;
-        }else if(isFree){
-          bg="#fff";borderColor="#f0e0ea";cursor="pointer";clickable=true;
-        }else if(isOwnSlot){
-          bg=colorFor(S.insegnamenti,lez.insegnamento);borderColor=MM;cursor="pointer";clickable=true;
-        }else{
-          // slot di altro docente: grigio, non interagibile
-          bg="#f0f0f0";borderColor="#e0e0e0";cursor="not-allowed";clickable=false;
-        }
-
-        const td=tr.insertCell();
-        td.style.cssText=`padding:3px 4px;border:1px solid ${borderColor};background:${bg};`+
-          `min-width:66px;max-width:84px;vertical-align:top;font-size:8.5px;height:36px;`+
-          `transition:background .12s;cursor:${cursor}`;
-
-        if(clickable&&!isDom){
-          if(isFree||(!pm&&isOwnSlot)){
-            td.classList.add("slot-free");
-          }
-          td.addEventListener("mouseenter",()=>{if(isFree)td.style.background=ML});
-          td.addEventListener("mouseleave",()=>{if(isFree)td.style.background="#fff"});
-          const lezId=pm?(lez?.id||null):(isOwnSlot?lez.id:null);
-          td.addEventListener("click",()=>handleSlotClick(iso,slot,DAYS_IT[di],
-            isFree?null:(pm?lez?.id:isOwnSlot?lez.id:null),pm));
-          td.title=isFree?"Slot libero":(lez?`${lez.docente}\n${lez.insegnamento}\n${lez.titolo}`:"");
-        }else if(!clickable&&!isDom&&lez){
-          td.title=`Slot occupato da ${lez.docente}`;
-        }
-
-        // Contenuto cella
-        if(pm&&lez&&(!fdoc||lez.docente===fdoc)){
-          const d1=document.createElement("div");d1.textContent=lez.docente.split(' ').pop();
-          d1.style.cssText=`font-weight:800;color:${MD};font-size:7.5px;line-height:1.2;overflow:hidden;max-height:18px`;
-          const d2=document.createElement("div");d2.textContent=lez.insegnamento.slice(0,22);
-          d2.style.cssText=`color:#333;font-size:7.5px;line-height:1.2;overflow:hidden;max-height:14px`;
-          td.appendChild(d1);td.appendChild(d2);
-        }else if(!pm&&isOwnSlot){
-          const d1=document.createElement("div");d1.textContent=lez.titolo.slice(0,20)||lez.insegnamento.slice(0,20);
-          d1.style.cssText=`font-weight:800;color:${MD};font-size:7.5px;line-height:1.2;overflow:hidden;max-height:18px`;
-          const d2=document.createElement("div");d2.textContent=lez.insegnamento.slice(0,22);
-          d2.style.cssText=`color:#333;font-size:7.5px;line-height:1.2;overflow:hidden;max-height:14px`;
-          td.appendChild(d1);td.appendChild(d2);
-        }else if(!pm&&isOthersSlot){
-          // piccolo indicatore grigio per slot di altri
-          const dot=document.createElement("div");dot.textContent="●";
-          dot.style.cssText=`color:#ccc;font-size:10px;text-align:center;margin-top:8px`;
-          td.appendChild(dot);
-        }
-      });
+  weeks.forEach((week,wi)=>{week.forEach((day,di)=>{
+    const iso=fmtDate(day);const isDom=di===6;const rbg=isDom?"#fafafa":(wi%2===0?"#fff":"#fdf7fb");
+    const tr=tbody.insertRow();tr.style.background=rbg;
+    const tdD=tr.insertCell();tdD.textContent=isoDisp(iso);tdD.style.cssText=`padding:4px 5px;font-weight:700;font-size:8.5px;color:#444;position:sticky;left:0;background:${rbg};z-index:1;border-right:2px solid ${ML}`;
+    const tdG=tr.insertCell();tdG.textContent=DAYS_IT[di].slice(0,3);tdG.style.cssText=`padding:4px 3px;color:${isDom?"#ccc":"#777"};font-size:8.5px;text-align:center`;
+    TIME_SLOTS.forEach(slot=>{
+      const lez=slotMap[sk(iso,slot)];
+      const isOwnSlot=!pm&&fdoc&&lez&&lez.docente===fdoc;
+      const isOthersSlot=!pm&&fdoc&&lez&&lez.docente!==fdoc;
+      const isFree=!lez;
+      let bg,borderColor,cursor,clickable;
+      if(isDom){bg="#f5f5f5";borderColor="#f0e0ea";cursor="default";clickable=false;}
+      else if(pm){const show=!fdoc||!lez||(lez.docente===fdoc);bg=show&&lez?colorFor(S.insegnamenti,lez.insegnamento):"#fff";borderColor=show&&lez?MM:"#f0e0ea";cursor="pointer";clickable=true;}
+      else if(isFree){bg="#fff";borderColor="#f0e0ea";cursor="pointer";clickable=true;}
+      else if(isOwnSlot){bg=colorFor(S.insegnamenti,lez.insegnamento);borderColor=MM;cursor="pointer";clickable=true;}
+      else{bg="#f0f0f0";borderColor="#e0e0e0";cursor="not-allowed";clickable=false;}
+      const td=tr.insertCell();
+      td.style.cssText=`padding:3px 4px;border:1px solid ${borderColor};background:${bg};min-width:66px;max-width:84px;vertical-align:top;font-size:8.5px;height:36px;transition:background .12s;cursor:${cursor}`;
+      if(clickable&&!isDom){
+        if(isFree||isOwnSlot)td.classList.add("slot-free");
+        td.addEventListener("mouseenter",()=>{if(isFree)td.style.background=ML;});
+        td.addEventListener("mouseleave",()=>{if(isFree)td.style.background="#fff";});
+        td.addEventListener("click",()=>handleSlotClick(iso,slot,DAYS_IT[di],isFree?null:(pm?lez?.id:isOwnSlot?lez.id:null),pm));
+        td.title=isFree?"Slot libero":(lez?`${lez.docente}\n${lez.insegnamento}\n${lez.titolo}`:"");
+      }else if(!clickable&&!isDom&&lez){td.title=`Slot occupato da ${lez.docente}`;}
+      if(pm&&lez&&(!fdoc||lez.docente===fdoc)){
+        const d1=document.createElement("div");d1.textContent=lez.docente.split(' ').pop();d1.style.cssText=`font-weight:800;color:${MD};font-size:7.5px;line-height:1.2;overflow:hidden;max-height:18px`;
+        const d2=document.createElement("div");d2.textContent=lez.insegnamento.slice(0,22);d2.style.cssText=`color:#333;font-size:7.5px;line-height:1.2;overflow:hidden;max-height:14px`;
+        td.appendChild(d1);td.appendChild(d2);
+      }else if(!pm&&isOwnSlot){
+        const d1=document.createElement("div");d1.textContent=(lez.titolo||lez.insegnamento).slice(0,20);d1.style.cssText=`font-weight:800;color:${MD};font-size:7.5px;line-height:1.2;overflow:hidden;max-height:18px`;
+        const d2=document.createElement("div");d2.textContent=lez.insegnamento.slice(0,22);d2.style.cssText=`color:#333;font-size:7.5px;line-height:1.2;overflow:hidden;max-height:14px`;
+        td.appendChild(d1);td.appendChild(d2);
+      }else if(!pm&&isOthersSlot){const dot=document.createElement("div");dot.textContent="●";dot.style.cssText=`color:#ccc;font-size:10px;text-align:center;margin-top:8px`;td.appendChild(dot);}
     });
-  });
+  });});
   wrap.appendChild(table);cont.innerHTML="";cont.appendChild(wrap);
 }
-
 function handleSlotClick(iso,slot,dn,lezId,pm){
   if(!pm){
-    const sa=getSA();
-    if(!sa||!sa.modificabileDocenti){showErr("Sessione non modificabile dai docenti");return}
-    if(!DOCSEL||!INSSEL){showErr("Seleziona prima docente e insegnamento");return}
+    const sa=getSA();if(!sa||!sa.modificabileDocenti){showErr("Sessione non modificabile dai docenti");return;}
+    if(!DOCSEL||!INSSEL){showErr("Seleziona prima docente e insegnamento");return;}
     const lez=lezId?getLZ().find(l=>l.id===lezId):null;
-    if(lez&&lez.docente!==DOCSEL){showErr("Non puoi modificare lezioni di altri docenti");return}
-    if(!lez){
-      const err=checkSpazio(DOCSEL,INSSEL,1);
-      if(err){showErr(err);return}
-    }
+    if(lez&&lez.docente!==DOCSEL){showErr("Non puoi modificare lezioni di altri docenti");return;}
+    if(!lez){const err=checkSpazio(DOCSEL,INSSEL,1);if(err){showErr(err);return;}}
   }
   openSlotModal(iso,slot,dn,lezId,pm);
 }
 
-/* ── Vista Docente ───────────────────────────────────────────────── */
+/* ── Vista Docente ───────────────────────────────────────────── */
 function renderVistaDocente(cont){
   const sa=getSA();const sessOk=sa&&sa.visibileDocenti;
   const ins=S.insegnamenti.find(i=>i.nome===INSSEL);
-  const ins_cnt=ins?countLZ(ins.nome):0;
-  const ins_ass=ins?ins.lezioniAssegnate:12;
+  const ins_cnt=ins?countLZ(ins.nome):0;const ins_ass=ins?ins.lezioniAssegnate:12;
   const maxOre=DOCSEL&&INSSEL?maxOreForDocIns(DOCSEL,INSSEL):null;
   const oreDoc=DOCSEL&&INSSEL?oreDocIns(DOCSEL,INSSEL):0;
-  const spazioGlob=ins_ass-ins_cnt;
-  const spazioDoc=maxOre!=null?(maxOre-oreDoc):spazioGlob;
-  const spazio=Math.min(spazioGlob,spazioDoc);
+  const spazio=Math.min(ins_ass-ins_cnt,maxOre!=null?(maxOre-oreDoc):(ins_ass-ins_cnt));
   const myLZ=DOCSEL&&sa?sa.lezioni.filter(l=>l.docente===DOCSEL):[];
   const insDispo=DOCSEL?insForDoc(DOCSEL):S.insegnamenti;
   const wrap=document.createElement("div");
 
-  // Funzione helper: il docente ha ancora ore da inserire nella sessione attiva?
-  function docenteHaOreDisponibili(docNome){
-    const d=S.docenti.find(x=>x.nome===docNome);
-    if(!d)return false;
-    // Se il docente non ha vincoli su insegnamenti specifici, controlla tutti gli insegnamenti
-    // disponibili per lui nella sessione e verifica se almeno uno ha ore globali residue
+  // Banner sincronizzazione per docenti
+  const syncBanner=document.createElement("div");syncBanner.className="sync-banner";
+  syncBanner.innerHTML=`<div><div style="font-weight:800;font-size:13px;margin-bottom:2px">📡 Dati locali — ${escH(S.corsoDiLaurea)}</div>
+    <div style="font-size:12px;opacity:.85">Sessione attiva: <b>${escH(sa?.nome||'—')}</b></div></div>`;
+  const syncBtnWrap=document.createElement("div");syncBtnWrap.style.cssText="display:flex;gap:8px;flex-shrink:0";
+  const syncBtn=document.createElement("button");syncBtn.className="btn btn-ghost btn-sm";
+  syncBtn.style.cssText="background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.5)";
+  syncBtn.textContent="🔄 Aggiorna dati";
+  syncBtn.addEventListener("click",()=>{
+    openModal(`<div class="modal-box" style="max-width:420px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="color:${M};font-weight:800;font-size:15px">🔄 Aggiorna dati dal Presidente</h3>
+        <button id="sync-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button></div>
+      <p style="font-size:13px;color:#555;margin-bottom:16px">Carica il file <b>stato_*.json</b> aggiornato fornito dal Presidente per ricevere le ultime modifiche (nuove sessioni, insegnamenti, orari).</p>
+      <p style="font-size:12px;color:#e67e22;font-weight:700;margin-bottom:12px">⚠️ I tuoi dati locali verranno sostituiti con quelli del file.</p>
+      <input type="file" id="sync-file" accept=".json" style="margin-bottom:14px"/>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button id="sync-cancel" class="btn btn-ghost">Annulla</button>
+        <button id="sync-ok" class="btn btn-primary">Carica e aggiorna</button>
+      </div></div>`);
+    document.getElementById("sync-close").onclick=closeModal;
+    document.getElementById("sync-cancel").onclick=closeModal;
+    document.getElementById("sync-ok").onclick=()=>{
+      const f=document.getElementById("sync-file").files[0];
+      if(!f){showErr("Seleziona un file JSON");return;}
+      importStato(f,(ok,err)=>{if(ok){closeModal();renderApp();showToast("Dati aggiornati!");}else{showErr("Errore: "+(err||"file non valido"));}});
+    };
+  });
+  syncBtnWrap.appendChild(syncBtn);syncBanner.appendChild(syncBtnWrap);
+  wrap.appendChild(syncBanner);
+
+  // Helper: docente ha ore disponibili?
+  function docenteHaOre(docNome){
     const insDisp=insForDoc(docNome);
-    for(const ins of insDisp){
-      const globaleUsato=countLZ(ins.nome);
-      if(globaleUsato>=ins.lezioniAssegnate)continue; // insegnamento globalmente esaurito
-      // Controlla il limite personale del docente su questo insegnamento
-      const maxOreDoc=maxOreForDocIns(docNome,ins.nome);
-      if(maxOreDoc!=null){
-        const oreDocIns_=oreDocIns(docNome,ins.nome);
-        if(oreDocIns_<maxOreDoc)return true; // ha ancora ore personali disponibili
-      }else{
-        return true; // nessun limite personale, e ci sono ore globali residue
-      }
+    for(const i of insDisp){
+      const gUsato=countLZ(i.nome);if(gUsato>=i.lezioniAssegnate)continue;
+      const mo=maxOreForDocIns(docNome,i.nome);if(mo!=null){if(oreDocIns(docNome,i.nome)<mo)return true;}else return true;
     }
     return false;
   }
 
-  // Docenti nel menu: quelli della sessione attiva con ore ancora da assegnare
+  // Pool docenti
   let docentiPool;
-  if(sa&&sa.docentiIds&&sa.docentiIds.length){
-    // Sessione con import CSV: parte dai docentiIds della sessione
-    const visDocIds=new Set(sa.docentiIds);
-    docentiPool=S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome);
-  }else{
-    // Sessione senza import: tutti i docenti registrati
-    docentiPool=S.docenti.map(d=>d.nome);
-  }
-  // Filtra: solo chi ha ancora ore disponibili
-  const docentiSessione=sortN(docentiPool.filter(n=>docenteHaOreDisponibili(n)));
-
-  // Se DOCSEL non è presente nella lista corrente, resettalo
+  if(sa&&sa.docentiIds&&sa.docentiIds.length){const vd=new Set(sa.docentiIds);docentiPool=S.docenti.filter(d=>vd.has(d.id)).map(d=>d.nome);}
+  else docentiPool=S.docenti.map(d=>d.nome);
+  const docentiSessione=sortN(docentiPool.filter(n=>docenteHaOre(n)));
   if(DOCSEL&&!docentiSessione.includes(DOCSEL)){DOCSEL="";INSSEL="";}
 
-  /* Barra selezione */
-  const bar=document.createElement("div");
-  bar.style.cssText=`background:${ML};border-radius:12px;padding:16px 20px;margin-bottom:20px;`+
-    `display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end`;
-
-  const sdW=document.createElement("div");
-  sdW.innerHTML=`<label class="lbl" style="color:${MD}">Il mio nome</label>`;
+  // Barra selezione
+  const bar=document.createElement("div");bar.style.cssText=`background:${ML};border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end`;
+  const sdW=document.createElement("div");sdW.innerHTML=`<label class="lbl" style="color:${MD}">Il mio nome</label>`;
   const sd=document.createElement("select");sd.style.minWidth="200px";
-  sd.innerHTML=`<option value="">— Seleziona docente —</option>`+
-    docentiSessione.map(n=>`<option value="${escA(n)}"${DOCSEL===n?' selected':''}>${escH(n)}</option>`).join('');
-  if(!docentiSessione.length){
-    sd.innerHTML=`<option value="" disabled>Nessun docente con ore disponibili</option>`;
-  }
-  sd.addEventListener("change",e=>{DOCSEL=e.target.value;INSSEL="";renderApp()});
+  if(!docentiSessione.length){sd.innerHTML=`<option value="" disabled>Nessun docente con ore disponibili</option>`;}
+  else{sd.innerHTML=`<option value="">— Seleziona —</option>`+docentiSessione.map(n=>`<option value="${escA(n)}"${DOCSEL===n?' selected':''}>${escH(n)}</option>`).join('');}
+  sd.addEventListener("change",e=>{DOCSEL=e.target.value;INSSEL="";renderApp();});
   sdW.appendChild(sd);bar.appendChild(sdW);
-
   if(DOCSEL){
-    const siW=document.createElement("div");
-    siW.innerHTML=`<label class="lbl" style="color:${MD}">Insegnamento</label>`;
+    const siW=document.createElement("div");siW.innerHTML=`<label class="lbl" style="color:${MD}">Insegnamento</label>`;
     const si=document.createElement("select");si.style.minWidth="250px";
-    si.innerHTML=`<option value="">— Seleziona insegnamento —</option>`+
-      insDispo.map(i=>`<option value="${escA(i.nome)}"${INSSEL===i.nome?' selected':''}>${escH(i.nome)}</option>`).join('');
-    si.addEventListener("change",e=>{INSSEL=e.target.value;renderApp()});
-    siW.appendChild(si);bar.appendChild(siW);
+    si.innerHTML=`<option value="">— Seleziona —</option>`+insDispo.map(i=>`<option value="${escA(i.nome)}"${INSSEL===i.nome?' selected':''}>${escH(i.nome)}</option>`).join('');
+    si.addEventListener("change",e=>{INSSEL=e.target.value;renderApp();});siW.appendChild(si);bar.appendChild(siW);
   }
-
   if(INSSEL){
-    const cnt=document.createElement("div");
-    cnt.style.cssText=`padding:8px 14px;background:#fff;border-radius:8px;border:1.5px solid ${M}`;
-    cnt.innerHTML=
-      `<div style="font-size:11px;color:#444;margin-bottom:2px">Globale: <b style="color:${ins_cnt>=ins_ass?"#e24b4a":MD}">${ins_cnt}/${ins_ass}</b></div>`+
+    const cnt=document.createElement("div");cnt.style.cssText=`padding:8px 14px;background:#fff;border-radius:8px;border:1.5px solid ${M}`;
+    cnt.innerHTML=`<div style="font-size:11px;color:#444;margin-bottom:2px">Globale: <b style="color:${ins_cnt>=ins_ass?"#e24b4a":MD}">${ins_cnt}/${ins_ass}</b></div>`+
       (maxOre!=null?`<div style="font-size:11px;color:#444">Tue ore: <b style="color:${oreDoc>=maxOre?"#e24b4a":MD}">${oreDoc}/${maxOre}</b></div>`:'')+
       (spazio<=0?`<div><span class="badge" style="background:#e24b4a;margin-top:4px;display:inline-block">⛔ LIMITE</span></div>`:'');
     bar.appendChild(cnt);
   }
-
-  if(DOCSEL&&myLZ.length){
-    const icsBtn=document.createElement("button");
-    icsBtn.className="btn btn-info btn-sm";icsBtn.textContent="📅 Esporta Google Calendar (.ics)";
-    icsBtn.addEventListener("click",()=>exportICS(DOCSEL));
-    bar.appendChild(icsBtn);
-  }
+  if(DOCSEL&&myLZ.length){const icsBtn=document.createElement("button");icsBtn.className="btn btn-info btn-sm";icsBtn.textContent="📅 Esporta Google Calendar";icsBtn.addEventListener("click",()=>exportICS(DOCSEL));bar.appendChild(icsBtn);}
   wrap.appendChild(bar);
 
-  if(!sessOk){
-    const warn=document.createElement("div");
-    warn.style.cssText="background:#fff3cd;border:1.5px solid #ffc107;border-radius:10px;"+
-      "padding:14px 16px;margin-bottom:16px;color:#856404;font-weight:700;font-size:13px";
-    warn.textContent=sa?"⚠️ La sessione attiva non è visibile ai docenti.":"⚠️ Nessuna sessione attiva.";
-    wrap.appendChild(warn);
-  }
+  if(!sessOk){const warn=document.createElement("div");warn.style.cssText="background:#fff3cd;border:1.5px solid #ffc107;border-radius:10px;padding:14px 16px;margin-bottom:16px;color:#856404;font-weight:700;font-size:13px";warn.textContent=sa?"⚠️ La sessione attiva non è visibile ai docenti.":"⚠️ Nessuna sessione attiva.";wrap.appendChild(warn);}
 
   if(DOCSEL&&INSSEL&&sessOk&&spazio>0){
-    const rcBox=document.createElement("div");
-    rcBox.style.cssText=`background:${ML};border-radius:12px;padding:16px 20px;margin-bottom:20px`;
+    const rcBox=document.createElement("div");rcBox.style.cssText=`background:${ML};border-radius:12px;padding:16px 20px;margin-bottom:20px`;
     rcBox.innerHTML=`<div style="font-weight:800;color:${MD};font-size:14px;margin-bottom:12px">🔍 Cerca slot disponibili</div>
     <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:10px">
-      <div><label class="lbl">Giorni</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${DAYS_IT.slice(0,6).map(g=>`<label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer;margin-bottom:0;color:#222">
-            <input type="checkbox" class="rc-g" value="${g}"> ${g.slice(0,3)}</label>`).join('')}
-        </div>
-      </div>
-      <div><label class="lbl">Fascia</label>
-        <select id="rc-fascia" style="min-width:155px">
-          <option value="tutti">Tutti gli orari</option>
-          <option value="mattina">Mattina (07-12)</option>
-          <option value="pomeriggio">Pomeriggio (12-17)</option>
-          <option value="sera">Sera (17-22)</option>
-        </select>
-      </div>
-      <div><label class="lbl">Tipo slot</label>
-        <select id="rc-tipo" style="min-width:165px">
-          <option value="singoli">Slot singoli (1 ora)</option>
-          <option value="doppi">Coppie consecutive (2 ore)</option>
-        </select>
-      </div>
+      <div><label class="lbl">Giorni</label><div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${DAYS_IT.slice(0,6).map(g=>`<label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer;margin-bottom:0;color:#222"><input type="checkbox" class="rc-g" value="${g}"> ${g.slice(0,3)}</label>`).join('')}
+      </div></div>
+      <div><label class="lbl">Fascia</label><select id="rc-fascia" style="min-width:155px"><option value="tutti">Tutti gli orari</option><option value="mattina">Mattina (07-12)</option><option value="pomeriggio">Pomeriggio (12-17)</option><option value="sera">Sera (17-22)</option></select></div>
+      <div><label class="lbl">Tipo slot</label><select id="rc-tipo" style="min-width:165px"><option value="singoli">Slot singoli (1 ora)</option><option value="doppi">Coppie consecutive (2 ore)</option></select></div>
       <button class="btn btn-primary btn-sm" id="btn-cerca">Cerca</button>
-    </div>
-    <div id="rc-results"></div>`;
-    wrap.appendChild(rcBox);
-    setTimeout(()=>document.getElementById("btn-cerca")?.addEventListener("click",cercaSlot),0);
+    </div><div id="rc-results"></div>`;
+    wrap.appendChild(rcBox);setTimeout(()=>document.getElementById("btn-cerca")?.addEventListener("click",cercaSlot),0);
   }else if(DOCSEL&&INSSEL&&sessOk&&spazio<=0){
-    const stopBox=document.createElement("div");
-    stopBox.style.cssText="background:#fdecea;border:1.5px solid #e24b4a;border-radius:10px;"+
-      "padding:14px 16px;margin-bottom:16px;color:#c0392b;font-weight:700;font-size:13px";
-    stopBox.textContent="⛔ Hai esaurito le ore disponibili per questo insegnamento.";
-    wrap.appendChild(stopBox);
+    const sb=document.createElement("div");sb.style.cssText="background:#fdecea;border:1.5px solid #e24b4a;border-radius:10px;padding:14px 16px;margin-bottom:16px;color:#c0392b;font-weight:700;font-size:13px";sb.textContent="⛔ Hai esaurito le ore disponibili per questo insegnamento.";wrap.appendChild(sb);
   }
 
-  const hint=document.createElement("p");
-  hint.style.cssText="font-size:12px;color:#555;margin-bottom:10px";
-
+  const hint=document.createElement("p");hint.style.cssText="font-size:12px;color:#555;margin-bottom:10px";
   const tbDiv=document.createElement("div");wrap.appendChild(tbDiv);
   cont.innerHTML="";cont.appendChild(wrap);
-
-  // Il tabellone si mostra solo dopo che il docente ha selezionato nome e insegnamento
-  if(sessOk&&DOCSEL&&INSSEL){
-    hint.textContent="Clicca su una cella libera per inserire una lezione. Le celle colorate mostrano le tue lezioni già inserite.";
-    wrap.insertBefore(hint,tbDiv);
-    // Passa DOCSEL come filtro: mostra solo le lezioni del docente selezionato + slot liberi
-    renderTabellone(tbDiv,false,DOCSEL);
-  }else if(sessOk&&DOCSEL&&!INSSEL){
-    hint.textContent="Seleziona l'insegnamento per visualizzare il calendario.";
-    wrap.insertBefore(hint,tbDiv);
-  }else if(!sessOk){
-    // messaggio già mostrato sopra (warn box)
-  }else{
-    hint.textContent="Seleziona il tuo nome e l'insegnamento per visualizzare il calendario della sessione attiva.";
-    wrap.insertBefore(hint,tbDiv);
-  }
+  if(sessOk&&DOCSEL&&INSSEL){hint.textContent="Clicca su una cella libera per inserire una lezione.";wrap.insertBefore(hint,tbDiv);renderTabellone(tbDiv,false,DOCSEL);}
+  else if(sessOk&&DOCSEL&&!INSSEL){hint.textContent="Seleziona l'insegnamento per visualizzare il calendario.";wrap.insertBefore(hint,tbDiv);}
+  else{hint.textContent="Seleziona il tuo nome e l'insegnamento per iniziare.";wrap.insertBefore(hint,tbDiv);}
 }
 
 function cercaSlot(){
   const sa=getSA();if(!sa)return;
-  const slotMap=buildSlotMap(sa.lezioni);
-  const weeks=generateWeeks(sa.dataInizio,sa.dataFine);
+  const slotMap=buildSlotMap(sa.lezioni);const weeks=generateWeeks(sa.dataInizio,sa.dataFine);
   const fmap={mattina:TIME_SLOTS.slice(0,5),pomeriggio:TIME_SLOTS.slice(5,10),sera:TIME_SLOTS.slice(10)};
-  const fascia=document.getElementById("rc-fascia")?.value||"tutti";
-  const tipo=document.getElementById("rc-tipo")?.value||"singoli";
+  const fascia=document.getElementById("rc-fascia")?.value||"tutti";const tipo=document.getElementById("rc-tipo")?.value||"singoli";
   const giorni=[...document.querySelectorAll(".rc-g:checked")].map(c=>c.value);
   const slots=fascia==="tutti"?TIME_SLOTS:(fmap[fascia]||TIME_SLOTS);
   const ins=S.insegnamenti.find(i=>i.nome===INSSEL);
-  const maxOre=maxOreForDocIns(DOCSEL,INSSEL);
-  const oreDoc=oreDocIns(DOCSEL,INSSEL);
+  const maxOre=maxOreForDocIns(DOCSEL,INSSEL);const oreDoc=oreDocIns(DOCSEL,INSSEL);
   const spazioGlob=ins?(ins.lezioniAssegnate-countLZ(INSSEL)):0;
-  const spazioDoc=maxOre!=null?(maxOre-oreDoc):spazioGlob;
-  const spazio=Math.min(spazioGlob,spazioDoc);
+  const spazioDoc=maxOre!=null?(maxOre-oreDoc):spazioGlob;const spazio=Math.min(spazioGlob,spazioDoc);
   const res=[];
   weeks.forEach(wk=>wk.forEach((day,di)=>{
-    if(di===6)return;const dn=DAYS_IT[di];
-    if(giorni.length&&!giorni.includes(dn))return;
-    const iso=fmtDate(day);
-    if(tipo==="singoli"){
-      slots.forEach(s=>{if(!slotMap[sk(iso,s)])res.push({iso,dn,s,tipo:"singola"})});
-    }else{
-      for(let i=0;i<slots.length-1;i++){
-        const s1=slots[i],s2=slots[i+1];
-        if(TIME_SLOTS.indexOf(s2)-TIME_SLOTS.indexOf(s1)===1&&!slotMap[sk(iso,s1)]&&!slotMap[sk(iso,s2)])
-          res.push({iso,dn,s:s1,sc:s2,tipo:"doppia"});
-      }
-    }
+    if(di===6)return;const dn=DAYS_IT[di];if(giorni.length&&!giorni.includes(dn))return;const iso=fmtDate(day);
+    if(tipo==="singoli"){slots.forEach(s=>{if(!slotMap[sk(iso,s)])res.push({iso,dn,s,tipo:"singola"});});}
+    else{for(let i=0;i<slots.length-1;i++){const s1=slots[i],s2=slots[i+1];if(TIME_SLOTS.indexOf(s2)-TIME_SLOTS.indexOf(s1)===1&&!slotMap[sk(iso,s1)]&&!slotMap[sk(iso,s2)])res.push({iso,dn,s:s1,sc:s2,tipo:"doppia"});}}
   }));
   const top=res.slice(0,40);const rc=document.getElementById("rc-results");if(!rc)return;
-  if(!top.length){rc.innerHTML=`<p style="font-size:13px;color:#555">Nessuno slot disponibile.</p>`;return}
-  rc.innerHTML=`<p style="font-size:12px;color:#444;margin-bottom:8px">
-    ${top.length} slot trovati · <b style="color:${spazio<=0?"#c0392b":MD}">${spazio} ore disponibili</b>:</p>
+  if(!top.length){rc.innerHTML=`<p style="font-size:13px;color:#555">Nessuno slot disponibile.</p>`;return;}
+  rc.innerHTML=`<p style="font-size:12px;color:#444;margin-bottom:8px">${top.length} slot trovati · <b style="color:${spazio<=0?"#c0392b":MD}">${spazio} ore disponibili</b>:</p>
   <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-    ${top.map(r=>`<label style="font-size:11px;display:flex;align-items:center;gap:4px;background:#fff;
-      border:1.5px solid ${M};border-radius:6px;padding:4px 9px;cursor:pointer;color:#222">
-      <input type="checkbox" class="rc-cb" data-iso="${r.iso}" data-s="${r.s}"
-        data-day="${escA(r.dn)}" data-tipo="${r.tipo}" data-sc="${r.sc||''}"/>
-      ${isoDisp(r.iso)} ${r.dn.slice(0,3)} ${r.s}${r.tipo==="doppia"?"+"+r.sc:""}
-    </label>`).join('')}
-  </div>
-  <button class="btn btn-primary btn-sm" id="btn-prenota">Prenota selezionati</button>`;
+    ${top.map(r=>`<label style="font-size:11px;display:flex;align-items:center;gap:4px;background:#fff;border:1.5px solid ${M};border-radius:6px;padding:4px 9px;cursor:pointer;color:#222">
+      <input type="checkbox" class="rc-cb" data-iso="${r.iso}" data-s="${r.s}" data-day="${escA(r.dn)}" data-tipo="${r.tipo}" data-sc="${r.sc||''}"/>
+      ${isoDisp(r.iso)} ${r.dn.slice(0,3)} ${r.s}${r.tipo==="doppia"?"+"+r.sc:""}</label>`).join('')}
+  </div><button class="btn btn-primary btn-sm" id="btn-prenota">Prenota selezionati</button>`;
   document.getElementById("btn-prenota")?.addEventListener("click",()=>prenotaSelezionati(spazio));
 }
-
 function prenotaSelezionati(spazio){
-  const cbs=[...document.querySelectorAll(".rc-cb:checked")];
-  if(!cbs.length){showErr("Nessuno slot selezionato");return}
-  const lz=[];
-  cbs.forEach(cb=>{
-    lz.push({id:uid(),data:cb.dataset.iso,fasciaOraria:cb.dataset.s,docente:DOCSEL,
-      insegnamento:INSSEL,titolo:"(da completare)",giornoSettimana:cb.dataset.day});
-    if(cb.dataset.tipo==="doppia"&&cb.dataset.sc)
-      lz.push({id:uid(),data:cb.dataset.iso,fasciaOraria:cb.dataset.sc,docente:DOCSEL,
-        insegnamento:INSSEL,titolo:"(da completare)",giornoSettimana:cb.dataset.day});
-  });
-  const err=checkSpazio(DOCSEL,INSSEL,lz.length);
-  if(err){showErr(err);return}
+  const cbs=[...document.querySelectorAll(".rc-cb:checked")];if(!cbs.length){showErr("Nessuno slot selezionato");return;}
+  const lz=[];cbs.forEach(cb=>{lz.push({id:uid(),data:cb.dataset.iso,fasciaOraria:cb.dataset.s,docente:DOCSEL,insegnamento:INSSEL,titolo:"(da completare)",giornoSettimana:cb.dataset.day});if(cb.dataset.tipo==="doppia"&&cb.dataset.sc)lz.push({id:uid(),data:cb.dataset.iso,fasciaOraria:cb.dataset.sc,docente:DOCSEL,insegnamento:INSSEL,titolo:"(da completare)",giornoSettimana:cb.dataset.day});});
+  const err=checkSpazio(DOCSEL,INSSEL,lz.length);if(err){showErr(err);return;}
   const sa=getSA();if(!sa)return;
   const nuove=lz.filter(n=>!sa.lezioni.find(x=>x.data===n.data&&x.fasciaOraria===n.fasciaOraria));
   S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:[...s.lezioni,...nuove]}:s);
   saveState();renderApp();showToast(`${nuove.length} slot prenotati!`);
 }
 
-/* ── Dashboard ───────────────────────────────────────────────────── */
+/* ── Dashboard ───────────────────────────────────────────────── */
 function renderDashboard(cont){
   if(!AUTH){
     cont.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:60vh">
-      <div style="background:#fff;border-radius:16px;padding:40px;text-align:center;
-        box-shadow:0 8px 40px rgba(212,22,140,.2);min-width:320px;max-width:380px;width:100%">
+      <div style="background:#fff;border-radius:16px;padding:40px;text-align:center;box-shadow:0 8px 40px rgba(212,22,140,.2);min-width:320px;max-width:380px;width:100%">
         <div style="font-size:48px;margin-bottom:12px">🔐</div>
         <h2 style="color:${MD};font-size:20px;font-weight:800;margin-bottom:6px">Area Presidente</h2>
         <p style="color:#555;font-size:13px;margin-bottom:22px">Inserisci la password per accedere</p>
-        <input type="password" id="pw-inp" placeholder="Password"
-          style="margin-bottom:6px;text-align:center;font-size:15px"
-          onkeydown="if(event.key==='Enter')checkPw()"/>
+        <input type="password" id="pw-inp" placeholder="Password" style="margin-bottom:6px;text-align:center;font-size:15px" onkeydown="if(event.key==='Enter')checkPw()"/>
         <div id="pw-err" style="color:#e24b4a;font-size:12px;margin-bottom:12px;min-height:18px"></div>
         <button class="btn btn-primary" style="width:100%;font-size:15px;padding:10px" onclick="checkPw()">Accedi</button>
-      </div>
-    </div>`;
-    return;
+      </div></div>`;return;
   }
-  const tabs=[["overview","📊 Panoramica"],["sessioni","📅 Sessioni"],
-    ["tabellone","🗓 Tabellone"],["anagrafiche","👥 Anagrafiche"]];
-  cont.innerHTML=`<div class="tab-nav">${tabs.map(([k,l])=>
-    `<button class="${DTAB===k?"active":""}" onclick="setDTab('${k}')">${l}</button>`).join('')}
-  </div><div id="dc"></div>`;
+  const tabs=[["overview","📊 Panoramica"],["sessioni","📅 Sessioni"],["tabellone","🗓 Tabellone"],["anagrafiche","👥 Anagrafiche"]];
+  cont.innerHTML=`<div class="tab-nav">${tabs.map(([k,l])=>`<button class="${DTAB===k?"active":""}" onclick="setDTab('${k}')">${l}</button>`).join('')}</div><div id="dc"></div>`;
   const dc=document.getElementById("dc");
-  if(DTAB==="overview")renderOverview(dc);
-  else if(DTAB==="sessioni")renderSessioniTab(dc);
-  else if(DTAB==="tabellone")renderTabelloneTab(dc);
-  else if(DTAB==="anagrafiche")renderAnagrafiche(dc);
+  if(DTAB==="overview")renderOverview(dc);else if(DTAB==="sessioni")renderSessioniTab(dc);else if(DTAB==="tabellone")renderTabelloneTab(dc);else if(DTAB==="anagrafiche")renderAnagrafiche(dc);
 }
-function checkPw(){
-  const v=(document.getElementById("pw-inp")||{}).value;
-  if(v==="password"){AUTH=true;renderApp()}
-  else{const e=document.getElementById("pw-err");if(e)e.textContent="Password errata."}
-}
-function setDTab(t){DTAB=t;renderApp()}
+function checkPw(){const v=(document.getElementById("pw-inp")||{}).value;if(v==="password"){AUTH=true;renderApp();}else{const e=document.getElementById("pw-err");if(e)e.textContent="Password errata.";}}
+function setDTab(t){DTAB=t;renderApp();}
 
-/* ── Overview ────────────────────────────────────────────────────── */
+/* ── Overview ────────────────────────────────────────────────── */
 function renderOverview(cont){
   const sa=getSA();const lz=sa?sa.lezioni:[];
-  const allIns=S.insegnamenti.map(ins=>{
-    const inserite=lz.filter(l=>l.insegnamento===ins.nome).length;
-    const mancanti=ins.lezioniAssegnate-inserite;
-    const status=inserite===0?"zero":inserite>=ins.lezioniAssegnate?"completo":"parziale";
-    const docenti=[...new Set(lz.filter(l=>l.insegnamento===ins.nome).map(l=>l.docente))];
-    return{...ins,inserite,mancanti,status,docenti};
-  });
-  const completi=allIns.filter(i=>i.status==="completo").length;
-  const parziali=allIns.filter(i=>i.status==="parziale").length;
-  const nonInit=allIns.filter(i=>i.status==="zero").length;
+  const allIns=S.insegnamenti.map(ins=>{const inserite=lz.filter(l=>l.insegnamento===ins.nome).length;const mancanti=ins.lezioniAssegnate-inserite;const status=inserite===0?"zero":inserite>=ins.lezioniAssegnate?"completo":"parziale";const docenti=[...new Set(lz.filter(l=>l.insegnamento===ins.nome).map(l=>l.docente))];return{...ins,inserite,mancanti,status,docenti};});
+  const completi=allIns.filter(i=>i.status==="completo").length;const parziali=allIns.filter(i=>i.status==="parziale").length;const nonInit=allIns.filter(i=>i.status==="zero").length;
   const filtered=DFILT==="tutti"?allIns:allIns.filter(i=>i.status===DFILT);
   cont.innerHTML=`
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:22px">
-    ${[["Lezioni inserite",lz.length,"#D4168C"],["Completi",completi,"#27ae60"],
-       ["Parziali",parziali,"#e67e22"],["Non iniziati",nonInit,"#e74c3c"]].map(([l,v,c])=>
-      `<div class="kpi-card"><div style="font-size:11px;color:#555;margin-bottom:6px">${l}</div>
-        <div style="font-size:30px;font-weight:800;color:${c}">${v}</div></div>`).join('')}
+    ${[["Lezioni inserite",lz.length,"#D4168C"],["Completi",completi,"#27ae60"],["Parziali",parziali,"#e67e22"],["Non iniziati",nonInit,"#e74c3c"]].map(([l,v,c])=>`<div class="kpi-card"><div style="font-size:11px;color:#555;margin-bottom:6px">${l}</div><div style="font-size:30px;font-weight:800;color:${c}">${v}</div></div>`).join('')}
   </div>
   <div class="action-row">
     <span style="font-size:13px;font-weight:700;color:#333">Filtra:</span>
@@ -839,86 +602,39 @@ function renderOverview(cont){
   </div>
   <div class="section-card" style="padding:0;overflow:hidden">
     <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead><tr style="background:${M}">
-        ${["Insegnamento","Docenti","Previste","Inserite","Mancanti","Stato"].map(h=>
-          `<th style="color:#fff;padding:10px 12px;text-align:left;font-weight:700;font-size:11px">${h}</th>`).join('')}
-      </tr></thead>
+      <thead><tr style="background:${M}">${["Insegnamento","Docenti","Previste","Inserite","Mancanti","Stato"].map(h=>`<th style="color:#fff;padding:10px 12px;text-align:left;font-weight:700;font-size:11px">${h}</th>`).join('')}</tr></thead>
       <tbody id="ov-tbody"></tbody>
-    </table>
-  </div>`;
+    </table></div>`;
   const tbody=document.getElementById("ov-tbody");
   filtered.forEach((ins,i)=>{
-    const tr=tbody.insertRow();
-    tr.style.cssText=`border-bottom:1px solid #fce8f4;background:${i%2===0?"#fff":"#fdf7fb"}`;
-    tr.innerHTML=`<td style="padding:8px 12px;font-weight:700;color:#1a1a1a;font-size:11px">${escH(ins.nome)}</td>
-      <td style="padding:8px 12px;color:#333;font-size:10px">${escH(ins.docenti.join(", ")||"—")}</td>
-      <td style="padding:8px 12px" id="prev-${ins.id}"></td>
-      <td style="padding:8px 12px;font-weight:800;color:${ins.inserite>=ins.lezioniAssegnate?"#27ae60":"#1a1a1a"}">${ins.inserite}</td>
-      <td style="padding:8px 12px;color:${ins.mancanti>0?"#c0392b":"#27ae60"};font-weight:800">${ins.mancanti>0?ins.mancanti:"—"}</td>
-      <td style="padding:8px 12px">
-        ${ins.status==="completo"?`<span class="badge" style="background:#27ae60">✅ Completo</span>`:
-          ins.status==="parziale"?`<span class="badge" style="background:#e67e22">⚠️ Parziale</span>`:
-          `<span class="badge" style="background:#e74c3c">❌ Non iniziato</span>`}
-      </td>`;
-    const editBtn=document.createElement("button");
-    editBtn.className="btn btn-sm";
-    editBtn.style.cssText=`background:${ML};color:${MD};border:1.5px solid ${MM};padding:4px 10px;font-size:12px;font-weight:800`;
-    editBtn.textContent=`${ins.lezioniAssegnate} ✏️`;
-    editBtn.addEventListener("click",()=>editLezAss(ins.id,ins.lezioniAssegnate));
-    document.getElementById(`prev-${ins.id}`)?.appendChild(editBtn);
+    const tr=tbody.insertRow();tr.style.cssText=`border-bottom:1px solid #fce8f4;background:${i%2===0?"#fff":"#fdf7fb"}`;
+    tr.innerHTML=`<td style="padding:8px 12px;font-weight:700;color:#1a1a1a;font-size:11px">${escH(ins.nome)}</td><td style="padding:8px 12px;color:#333;font-size:10px">${escH(ins.docenti.join(", ")||"—")}</td><td style="padding:8px 12px" id="prev-${ins.id}"></td><td style="padding:8px 12px;font-weight:800;color:${ins.inserite>=ins.lezioniAssegnate?"#27ae60":"#1a1a1a"}">${ins.inserite}</td><td style="padding:8px 12px;color:${ins.mancanti>0?"#c0392b":"#27ae60"};font-weight:800">${ins.mancanti>0?ins.mancanti:"—"}</td>
+    <td style="padding:8px 12px">${ins.status==="completo"?`<span class="badge" style="background:#27ae60">✅ Completo</span>`:ins.status==="parziale"?`<span class="badge" style="background:#e67e22">⚠️ Parziale</span>`:`<span class="badge" style="background:#e74c3c">❌ Non iniziato</span>`}</td>`;
+    const eb=document.createElement("button");eb.className="btn btn-sm";eb.style.cssText=`background:${ML};color:${MD};border:1.5px solid ${MM};padding:4px 10px;font-size:12px;font-weight:800`;eb.textContent=`${ins.lezioniAssegnate} ✏️`;eb.addEventListener("click",()=>editLezAss(ins.id,ins.lezioniAssegnate));document.getElementById(`prev-${ins.id}`)?.appendChild(eb);
   });
 }
-function setDFilt(f){DFILT=f;renderApp()}
+function setDFilt(f){DFILT=f;renderApp();}
 function editLezAss(id,current){
-  openModal(`<div class="modal-box" style="max-width:360px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <h3 style="color:${M};font-weight:800;font-size:15px">Modifica lezioni previste</h3>
-      <button id="ela-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button>
-    </div>
-    <label class="lbl">Numero lezioni assegnate</label>
-    <input type="number" id="la-val" value="${current}" min="1" style="margin-bottom:16px"/>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button id="ela-cancel" class="btn btn-ghost">Annulla</button>
-      <button id="ela-save" class="btn btn-primary">Salva</button>
-    </div>
-  </div>`);
-  document.getElementById("ela-close").onclick=closeModal;
-  document.getElementById("ela-cancel").onclick=closeModal;
-  document.getElementById("ela-save").onclick=()=>{
-    const v=parseInt(document.getElementById("la-val")?.value||"0");
-    if(!v||v<1){showErr("Valore non valido");return}
-    S.insegnamenti=S.insegnamenti.map(i=>i.id===id?{...i,lezioniAssegnate:v}:i);
-    saveState();closeModal();renderApp();showToast("Aggiornato!");
-  };
+  openModal(`<div class="modal-box" style="max-width:360px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="color:${M};font-weight:800;font-size:15px">Modifica lezioni previste</h3><button id="ela-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button></div><label class="lbl">Numero lezioni assegnate</label><input type="number" id="la-val" value="${current}" min="1" style="margin-bottom:16px"/><div style="display:flex;gap:10px;justify-content:flex-end"><button id="ela-cancel" class="btn btn-ghost">Annulla</button><button id="ela-save" class="btn btn-primary">Salva</button></div></div>`);
+  document.getElementById("ela-close").onclick=closeModal;document.getElementById("ela-cancel").onclick=closeModal;
+  document.getElementById("ela-save").onclick=()=>{const v=parseInt(document.getElementById("la-val")?.value||"0");if(!v||v<1){showErr("Valore non valido");return;}S.insegnamenti=S.insegnamenti.map(i=>i.id===id?{...i,lezioniAssegnate:v}:i);saveState();closeModal();renderApp();showToast("Aggiornato!");};
   setTimeout(()=>document.getElementById("la-val")?.focus(),100);
 }
 
-/* ── Sessioni ────────────────────────────────────────────────────── */
+/* ── Sessioni ────────────────────────────────────────────────── */
 function renderSessioniTab(cont){
   const wrap=document.createElement("div");
-  const hdr=document.createElement("div");
-  hdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px";
-  hdr.innerHTML=`<h3 style="color:#1a1a1a;font-weight:800;font-size:15px">Gestione Sessioni</h3>`;
-  const addBtn=document.createElement("button");addBtn.className="btn btn-primary btn-sm";
-  addBtn.textContent="+ Nuova sessione";addBtn.addEventListener("click",()=>openSessModal(null));
-  hdr.appendChild(addBtn);wrap.appendChild(hdr);
+  const hdr=document.createElement("div");hdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px";hdr.innerHTML=`<h3 style="color:#1a1a1a;font-weight:800;font-size:15px">Gestione Sessioni</h3>`;
+  const addBtn=document.createElement("button");addBtn.className="btn btn-primary btn-sm";addBtn.textContent="+ Nuova sessione";addBtn.addEventListener("click",()=>openSessModal(null));hdr.appendChild(addBtn);wrap.appendChild(hdr);
   S.sessioni.forEach(sess=>{
-    const isAtt=sess.id===S.sessioneAttiva;
-    const card=document.createElement("div");card.className="section-card";
-    card.style.border=isAtt?`2.5px solid ${M}`:"1.5px solid #e0c8d8";
+    const isAtt=sess.id===S.sessioneAttiva;const card=document.createElement("div");card.className="section-card";card.style.border=isAtt?`2.5px solid ${M}`:"1.5px solid #e0c8d8";
     card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
       <div style="flex:1;min-width:200px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <span style="font-weight:800;font-size:15px;color:#1a1a1a">${escH(sess.nome)}</span>
-          ${isAtt?`<span class="badge" style="background:${M}">● ATTIVA</span>`:''}
-        </div>
-        <div style="font-size:12px;color:#444;margin-bottom:8px">
-          📅 ${isoDisp(sess.dataInizio)} → ${isoDisp(sess.dataFine)}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-weight:800;font-size:15px;color:#1a1a1a">${escH(sess.nome)}</span>${isAtt?`<span class="badge" style="background:${M}">● ATTIVA</span>`:''}</div>
+        <div style="font-size:12px;color:#444;margin-bottom:8px">📅 ${isoDisp(sess.dataInizio)} → ${isoDisp(sess.dataFine)}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <span class="badge" style="background:${sess.visibileDocenti?"#27ae60":"#7f8c8d"}">
-            ${sess.visibileDocenti?"👁 Visibile":"🚫 Nascosta"}</span>
-          <span class="badge" style="background:${sess.modificabileDocenti?"#2980b9":"#7f8c8d"}">
-            ${sess.modificabileDocenti?"✏️ Modificabile":"🔒 Sola lettura"}</span>
+          <span class="badge" style="background:${sess.visibileDocenti?"#27ae60":"#7f8c8d"}">${sess.visibileDocenti?"👁 Visibile":"🚫 Nascosta"}</span>
+          <span class="badge" style="background:${sess.modificabileDocenti?"#2980b9":"#7f8c8d"}">${sess.modificabileDocenti?"✏️ Modificabile":"🔒 Sola lettura"}</span>
           <span class="badge" style="background:${MD}">${sess.lezioni.length} lezioni</span>
         </div>
       </div>
@@ -926,588 +642,222 @@ function renderSessioniTab(cont){
     </div>`;
     wrap.appendChild(card);
     const ba=card.querySelector(`#sb-${sess.id}`);
-    if(!isAtt){const b=document.createElement("button");b.className="btn btn-success btn-xs";
-      b.textContent="✔ Rendi attiva";b.addEventListener("click",()=>setSessAttiva(sess.id));ba.appendChild(b)}
-    const b2=document.createElement("button");b2.className="btn btn-outline btn-xs";
-    b2.textContent="✏️ Modifica";b2.addEventListener("click",()=>openSessModal(sess.id));ba.appendChild(b2);
-    const b3=document.createElement("button");b3.className="btn btn-info btn-xs";
-    b3.textContent="⬇ CSV";b3.addEventListener("click",()=>exportSessCSV(sess.id));ba.appendChild(b3);
-    if(!isAtt){const b4=document.createElement("button");b4.className="btn btn-danger btn-xs";
-      b4.textContent="🗑";b4.addEventListener("click",()=>deleteSess(sess.id));ba.appendChild(b4)}
+    if(!isAtt){const b=document.createElement("button");b.className="btn btn-success btn-xs";b.textContent="✔ Rendi attiva";b.addEventListener("click",()=>setSessAttiva(sess.id));ba.appendChild(b);}
+    const b2=document.createElement("button");b2.className="btn btn-outline btn-xs";b2.textContent="✏️ Modifica";b2.addEventListener("click",()=>openSessModal(sess.id));ba.appendChild(b2);
+    const b3=document.createElement("button");b3.className="btn btn-info btn-xs";b3.textContent="⬇ CSV";b3.addEventListener("click",()=>exportSessCSV(sess.id));ba.appendChild(b3);
+    if(!isAtt){const b4=document.createElement("button");b4.className="btn btn-danger btn-xs";b4.textContent="🗑";b4.addEventListener("click",()=>deleteSess(sess.id));ba.appendChild(b4);}
   });
   cont.innerHTML="";cont.appendChild(wrap);
 }
-function setSessAttiva(id){
-  S.sessioneAttiva=id;
-  // Reset selezioni docente/insegnamento: appartengono alla sessione precedente
-  DOCSEL="";INSSEL="";
-  saveState();renderApp();showToast("Sessione attiva aggiornata!");
-}
+function setSessAttiva(id){S.sessioneAttiva=id;DOCSEL="";INSSEL="";saveState();renderApp();showToast("Sessione attiva aggiornata!");}
+function deleteSess(id){openConfirm("Eliminare questa sessione e tutte le sue lezioni?",()=>{S.sessioni=S.sessioni.filter(s=>s.id!==id);if(S.sessioneAttiva===id)S.sessioneAttiva=S.sessioni[0]?.id||"";saveState();renderApp();showToast("Sessione eliminata.");});}
 
-/* ── Confirm modal (sostituisce confirm() bloccato in alcuni contesti) ── */
-function openConfirm(msg,onYes){
-  const cid=uid();
-  (window._confirmCb=window._confirmCb||{})[cid]=onYes;
-  openModal(`<div class="modal-box" style="max-width:400px">
-    <div style="font-size:22px;text-align:center;margin-bottom:14px">⚠️</div>
-    <p style="font-size:14px;color:#222;text-align:center;margin-bottom:22px;line-height:1.5">${escH(msg)}</p>
-    <div style="display:flex;gap:10px;justify-content:center">
-      <button id="conf-no" class="btn btn-ghost">Annulla</button>
-      <button id="conf-yes" class="btn btn-danger">Sì, elimina</button>
-    </div>
-  </div>`);
-  document.getElementById("conf-no").onclick=closeModal;
-  document.getElementById("conf-yes").onclick=()=>{
-    closeModal();
-    const cb=(window._confirmCb||{})[cid];
-    if(cb)cb();
-  };
-}
-
-function deleteSess(id){
-  openConfirm("Eliminare questa sessione e tutte le sue lezioni?",()=>{
-    S.sessioni=S.sessioni.filter(s=>s.id!==id);
-    if(S.sessioneAttiva===id)S.sessioneAttiva=S.sessioni[0]?.id||"";
-    saveState();renderApp();showToast("Sessione eliminata.");
-  });
-}
-// Stato temporaneo del CSV parsed (condiviso tra i passi della modale)
-let _csvParsed=null; // {cdsList, rows}
-
+/* ── CSV Carico Didattico ────────────────────────────────────── */
+let _csvParsed=null,_csvSessionInsIds=[],_csvSessionDocIds=[];
 function parseCSVCarico(text){
-  // Parser CSV robusto (gestisce virgolette con eventuali virgole interne)
-  function parseRow(line){
-    const res=[];let cur='',inQ=false;
-    for(let i=0;i<line.length;i++){
-      const c=line[i];
-      if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++}else inQ=!inQ}
-      else if(c===','&&!inQ){res.push(cur.trim());cur=''}
-      else cur+=c;
-    }
-    res.push(cur.trim());
-    return res;
-  }
-  const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l=>l.trim());
-  if(lines.length<2)return null;
-  // skip header (row 0)
-  const rows=[];
-  const cdsList=new Set();
-  for(let i=1;i<lines.length;i++){
-    const r=parseRow(lines[i]);
-    if(r.length<6)continue;
-    const cds=(r[5]||'').trim();
-    if(!cds)continue;
-    cdsList.add(cds);
-    rows.push(r);
-  }
+  function parseRow(line){const res=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}else if(c===','&&!inQ){res.push(cur.trim());cur='';}else cur+=c;}res.push(cur.trim());return res;}
+  const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l=>l.trim());if(lines.length<2)return null;
+  const rows=[];const cdsList=new Set();
+  for(let i=1;i<lines.length;i++){const r=parseRow(lines[i]);if(r.length<6)continue;const cds=(r[5]||'').trim();if(!cds)continue;cdsList.add(cds);rows.push(r);}
   return{cdsList:[...cdsList].sort(),rows};
 }
-
 function onCSVFileChange(evt){
   const file=evt.target.files[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=e=>{
-    const parsed=parseCSVCarico(e.target.result);
-    if(!parsed||!parsed.rows.length){showErr("File CSV non valido o vuoto.");return}
-    _csvParsed=parsed;
-    // Mostra step 2: selezione CdS
-    const box=document.getElementById("csv-step2");
-    if(!box)return;
-    box.innerHTML=`<label class="lbl" style="margin-top:4px">Seleziona il Corso di Studi *</label>
-      <select id="csv-cds" style="margin-bottom:10px">
-        <option value="">— Scegli CdS —</option>
-        ${parsed.cdsList.map(c=>`<option value="${escA(c)}">${escH(c)}</option>`).join('')}
-      </select>
-      <div id="csv-preview" style="font-size:12px;color:#555;min-height:20px"></div>`;
-    document.getElementById("csv-cds")?.addEventListener("change",onCSVCdsChange);
-  };
+  reader.onload=e=>{const parsed=parseCSVCarico(e.target.result);if(!parsed||!parsed.rows.length){showErr("File CSV non valido o vuoto.");return;}
+    _csvParsed=parsed;const box=document.getElementById("csv-step2");if(!box)return;
+    box.innerHTML=`<label class="lbl" style="margin-top:4px">Seleziona il Corso di Studi *</label><select id="csv-cds" style="margin-bottom:10px"><option value="">— Scegli CdS —</option>${parsed.cdsList.map(c=>`<option value="${escA(c)}">${escH(c)}</option>`).join('')}</select><div id="csv-preview" style="font-size:12px;color:#555;min-height:20px"></div>`;
+    document.getElementById("csv-cds")?.addEventListener("change",onCSVCdsChange);};
   reader.readAsText(file,'UTF-8');
 }
-
 function onCSVCdsChange(){
-  const cds=(document.getElementById("csv-cds")||{}).value;
-  if(!cds||!_csvParsed)return;
-  const rows=_csvParsed.rows.filter(r=>(r[5]||'').trim()===cds);
-  // Conta insegnamenti e docenti unici
-  const insSet=new Set();const docSet=new Set();
-  rows.forEach(r=>{
-    const nome=(r[2]||'').trim();if(nome)insSet.add(nome);
-    [[12],[16],[20],[24]].forEach(([di])=>{const d=(r[di]||'').trim();if(d)docSet.add(d)});
-  });
-  const prev=document.getElementById("csv-preview");
-  if(prev)prev.innerHTML=`<span style="color:#27ae60;font-weight:700">✅ Trovati: ${insSet.size} insegnamenti, ${docSet.size} docenti</span>`;
+  const cds=(document.getElementById("csv-cds")||{}).value;if(!cds||!_csvParsed)return;
+  const rows=_csvParsed.rows.filter(r=>(r[5]||'').trim()===cds);const insSet=new Set();const docSet=new Set();
+  rows.forEach(r=>{const n=(r[2]||'').trim();if(n)insSet.add(n);[[12],[16],[20],[24]].forEach(([di])=>{const d=(r[di]||'').trim();if(d)docSet.add(d);});});
+  const prev=document.getElementById("csv-preview");if(prev)prev.innerHTML=`<span style="color:#27ae60;font-weight:700">✅ Trovati: ${insSet.size} insegnamenti, ${docSet.size} docenti</span>`;
 }
-
 function applyCSVImport(cds){
   if(!_csvParsed||!cds)return false;
-  const rows=_csvParsed.rows.filter(r=>(r[5]||'').trim()===cds);
-  if(!rows.length)return false;
-
-  const insMap={}; // nome→oreGlobali
-  const docMap={}; // nome→{insNome→oreDocente}
-
-  rows.forEach(r=>{
-    const insNome=(r[2]||'').trim();if(!insNome)return;
-    const oreGlob=parseInt(r[10])||0;
-    if(!insMap[insNome]||oreGlob>0)insMap[insNome]=oreGlob;
-    const coppie=[[12,13],[16,17],[20,21],[24,25]];
-    coppie.forEach(([ni,oi])=>{
-      const docNome=(r[ni]||'').trim();
-      const oreDoc=parseInt(r[oi])||0;
-      if(!docNome||oreDoc<=0)return;
-      if(!docMap[docNome])docMap[docNome]={};
-      docMap[docNome][insNome]=(docMap[docNome][insNome]||0)+oreDoc;
-    });
-  });
-
-  // Tieni traccia degli ID creati/aggiornati per questa sessione
-  const sessionInsIds=[];
-  const sessionDocIds=[];
-
-  // 1. Insegnamenti
-  Object.entries(insMap).forEach(([nome,ore])=>{
-    let existing=S.insegnamenti.find(i=>i.nome.toLowerCase()===nome.toLowerCase());
-    if(existing){
-      S.insegnamenti=S.insegnamenti.map(i=>i.id===existing.id?{...i,lezioniAssegnate:ore>0?ore:i.lezioniAssegnate}:i);
-      sessionInsIds.push(existing.id);
-    }else{
-      const newIns={id:uid(),nome,lezioniAssegnate:ore>0?ore:12};
-      S.insegnamenti.push(newIns);
-      sessionInsIds.push(newIns.id);
-    }
-  });
-
-  // 2. Docenti
-  Object.entries(docMap).forEach(([docNome,insOreMap])=>{
-    const insegnamenti=Object.entries(insOreMap).map(([iNome,maxOre])=>{
-      const ins=S.insegnamenti.find(i=>i.nome.toLowerCase()===iNome.toLowerCase());
-      if(!ins)return null;
-      return{insId:ins.id,maxOre:maxOre>0?maxOre:null};
-    }).filter(Boolean);
-    let existing=S.docenti.find(d=>d.nome.toLowerCase()===docNome.toLowerCase());
-    if(existing){
-      const existingIns=[...(existing.insegnamenti||[])];
-      insegnamenti.forEach(ni=>{
-        const idx=existingIns.findIndex(x=>x.insId===ni.insId);
-        if(idx>=0)existingIns[idx]={...existingIns[idx],maxOre:ni.maxOre};
-        else existingIns.push(ni);
-      });
-      S.docenti=S.docenti.map(d=>d.id===existing.id?{...d,insegnamenti:existingIns}:d);
-      sessionDocIds.push(existing.id);
-    }else{
-      const newDoc={id:uid(),nome:docNome,insegnamenti};
-      S.docenti.push(newDoc);
-      sessionDocIds.push(newDoc.id);
-    }
-  });
-
-  // Salva i riferimenti nella sessione per il filtro anagrafiche
-  _csvSessionInsIds=sessionInsIds;
-  _csvSessionDocIds=sessionDocIds;
-  return true;
+  const rows=_csvParsed.rows.filter(r=>(r[5]||'').trim()===cds);if(!rows.length)return false;
+  const insMap={};const docMap={};
+  rows.forEach(r=>{const insNome=(r[2]||'').trim();if(!insNome)return;const oreGlob=parseInt(r[10])||0;if(!insMap[insNome]||oreGlob>0)insMap[insNome]=oreGlob;const coppie=[[12,13],[16,17],[20,21],[24,25]];coppie.forEach(([ni,oi])=>{const docNome=(r[ni]||'').trim();const oreDoc=parseInt(r[oi])||0;if(!docNome||oreDoc<=0)return;if(!docMap[docNome])docMap[docNome]={};docMap[docNome][insNome]=(docMap[docNome][insNome]||0)+oreDoc;});});
+  const sessionInsIds=[],sessionDocIds=[];
+  Object.entries(insMap).forEach(([nome,ore])=>{let ex=S.insegnamenti.find(i=>i.nome.toLowerCase()===nome.toLowerCase());if(ex){S.insegnamenti=S.insegnamenti.map(i=>i.id===ex.id?{...i,lezioniAssegnate:ore>0?ore:i.lezioniAssegnate}:i);sessionInsIds.push(ex.id);}else{const nI={id:uid(),nome,lezioniAssegnate:ore>0?ore:12};S.insegnamenti.push(nI);sessionInsIds.push(nI.id);}});
+  Object.entries(docMap).forEach(([docNome,insOreMap])=>{const insegnamenti=Object.entries(insOreMap).map(([iN,mo])=>{const ins=S.insegnamenti.find(i=>i.nome.toLowerCase()===iN.toLowerCase());if(!ins)return null;return{insId:ins.id,maxOre:mo>0?mo:null};}).filter(Boolean);let ex=S.docenti.find(d=>d.nome.toLowerCase()===docNome.toLowerCase());if(ex){const eI=[...(ex.insegnamenti||[])];insegnamenti.forEach(ni=>{const idx=eI.findIndex(x=>x.insId===ni.insId);if(idx>=0)eI[idx]={...eI[idx],maxOre:ni.maxOre};else eI.push(ni);});S.docenti=S.docenti.map(d=>d.id===ex.id?{...d,insegnamenti:eI}:d);sessionDocIds.push(ex.id);}else{const nD={id:uid(),nome:docNome,insegnamenti};S.docenti.push(nD);sessionDocIds.push(nD.id);}});
+  _csvSessionInsIds=sessionInsIds;_csvSessionDocIds=sessionDocIds;return true;
 }
-let _csvSessionInsIds=[];
-let _csvSessionDocIds=[];
-
 function openSessModal(id){
-  const sess=id?S.sessioni.find(s=>s.id===id):null;
-  _csvParsed=null; // reset stato CSV
+  const sess=id?S.sessioni.find(s=>s.id===id):null;_csvParsed=null;
   openModal(`<div class="modal-box" style="max-width:640px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
       <h3 style="color:${M};font-weight:800;font-size:15px">${sess?"Modifica sessione":"Nuova sessione"}</h3>
-      <button id="sm-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button>
-    </div>
-    <div style="margin-bottom:13px"><label class="lbl">Nome sessione *</label>
-      <input type="text" id="s-nome" value="${escA(sess?.nome||'')}" placeholder="Es. Settembre–Dicembre 2025"/></div>
+      <button id="sm-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button></div>
+    <div style="margin-bottom:13px"><label class="lbl">Nome sessione *</label><input type="text" id="s-nome" value="${escA(sess?.nome||'')}" placeholder="Es. Settembre–Dicembre 2025"/></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:13px">
       <div><label class="lbl">Data inizio *</label><input type="date" id="s-ini" value="${sess?.dataInizio||''}"/></div>
       <div><label class="lbl">Data fine *</label><input type="date" id="s-fin" value="${sess?.dataFine||''}"/></div>
     </div>
     <div style="background:#fdf7fb;border-radius:8px;padding:12px;margin-bottom:14px">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:700;margin-bottom:10px;color:#222">
-        <input type="checkbox" id="s-vis" ${sess==null||sess.visibileDocenti?'checked':''}
-          style="width:auto;accent-color:${M}"/> 👁 Visibile ai docenti</label>
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:700;margin-bottom:0;color:#222">
-        <input type="checkbox" id="s-mod" ${sess==null||sess.modificabileDocenti?'checked':''}
-          style="width:auto;accent-color:${M}"/> ✏️ Modificabile dai docenti</label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:700;margin-bottom:10px;color:#222"><input type="checkbox" id="s-vis" ${sess==null||sess.visibileDocenti?'checked':''} style="width:auto;accent-color:${M}"/> 👁 Visibile ai docenti</label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:700;margin-bottom:0;color:#222"><input type="checkbox" id="s-mod" ${sess==null||sess.modificabileDocenti?'checked':''} style="width:auto;accent-color:${M}"/> ✏️ Modificabile dai docenti</label>
     </div>
     ${!sess?`<div style="background:#f0f8ff;border:1.5px solid #2980b9;border-radius:10px;padding:14px 16px;margin-bottom:14px">
-      <div style="font-weight:800;color:#1a5276;font-size:13px;margin-bottom:10px">
-        📂 Importa Carico Didattico (opzionale)
-      </div>
-      <p style="font-size:12px;color:#555;margin-bottom:10px">
-        Carica il file CSV del carico didattico per importare automaticamente insegnamenti, docenti e ore assegnate per un CdS specifico.
-      </p>
-      <label class="lbl">File CSV carico didattico</label>
-      <input type="file" id="csv-file" accept=".csv" style="margin-bottom:10px"/>
-      <div id="csv-step2"></div>
-    </div>`:''}
+      <div style="font-weight:800;color:#1a5276;font-size:13px;margin-bottom:8px">📂 Importa Carico Didattico (opzionale)</div>
+      <p style="font-size:12px;color:#555;margin-bottom:10px">Carica il CSV del carico didattico per importare insegnamenti, docenti e ore per un CdS.</p>
+      <label class="lbl">File CSV carico didattico</label><input type="file" id="csv-file" accept=".csv" style="margin-bottom:10px"/>
+      <div id="csv-step2"></div></div>`:''}
     <div style="display:flex;justify-content:flex-end;gap:10px">
       <button id="sm-cancel" class="btn btn-ghost">Annulla</button>
       <button id="sm-save" class="btn btn-primary">Salva sessione</button>
-    </div>
-  </div>`);
-  document.getElementById("sm-close").onclick=closeModal;
-  document.getElementById("sm-cancel").onclick=closeModal;
-  document.getElementById("sm-save").onclick=()=>saveSess(id||"");
-  // Bind file input solo per nuove sessioni
-  if(!sess){
-    document.getElementById("csv-file")?.addEventListener("change",onCSVFileChange);
-  }
+    </div></div>`);
+  document.getElementById("sm-close").onclick=closeModal;document.getElementById("sm-cancel").onclick=closeModal;document.getElementById("sm-save").onclick=()=>saveSess(id||"");
+  if(!sess)document.getElementById("csv-file")?.addEventListener("change",onCSVFileChange);
 }
-
 function saveSess(id){
-  const nome=(document.getElementById("s-nome")||{}).value?.trim();
-  const ini=(document.getElementById("s-ini")||{}).value;
-  const fin=(document.getElementById("s-fin")||{}).value;
-  const vis=document.getElementById("s-vis")?.checked;
-  const mod=document.getElementById("s-mod")?.checked;
-  if(!nome||!ini||!fin){showErr("Compila tutti i campi");return}
-  if(ini>fin){showErr("La data di inizio deve precedere la data di fine");return}
-
-  // Gestione import CSV (solo per nuove sessioni)
+  const nome=(document.getElementById("s-nome")||{}).value?.trim();const ini=(document.getElementById("s-ini")||{}).value;const fin=(document.getElementById("s-fin")||{}).value;const vis=document.getElementById("s-vis")?.checked;const mod=document.getElementById("s-mod")?.checked;
+  if(!nome||!ini||!fin){showErr("Compila tutti i campi");return;}if(ini>fin){showErr("Data inizio deve precedere data fine");return;}
   let csvApplied=false;
-  if(!id&&_csvParsed){
-    const cds=(document.getElementById("csv-cds")||{}).value;
-    if(cds){
-      csvApplied=applyCSVImport(cds);
-      if(!csvApplied){showErr("Errore durante l'importazione del CSV. Verificare il file.");return}
-    }
-  }
-
-  if(id){
-    S.sessioni=S.sessioni.map(s=>s.id===id?{...s,nome,dataInizio:ini,dataFine:fin,
-      visibileDocenti:!!vis,modificabileDocenti:!!mod}:s);
-    showToast("Sessione aggiornata!");
-  }else{
-    const ns={id:uid(),nome,dataInizio:ini,dataFine:fin,
-      visibileDocenti:!!vis,modificabileDocenti:!!mod,lezioni:[],
-      // se è stato fatto un import CSV, registra quali insegnamenti e docenti appartengono a questa sessione
-      insegnamentiIds:csvApplied?[..._csvSessionInsIds]:null,
-      docentiIds:csvApplied?[..._csvSessionDocIds]:null
-    };
-    S.sessioni.push(ns);
-    S.sessioneAttiva=ns.id;
-    showToast(csvApplied
-      ?"✅ Sessione creata e carico didattico importato!"
-      :"Sessione creata!");
-  }
-  _csvParsed=null;_csvSessionInsIds=[];_csvSessionDocIds=[];
-  saveState();closeModal();renderApp();
+  if(!id&&_csvParsed){const cds=(document.getElementById("csv-cds")||{}).value;if(cds){csvApplied=applyCSVImport(cds);if(!csvApplied){showErr("Errore importazione CSV");return;}}}
+  if(id){S.sessioni=S.sessioni.map(s=>s.id===id?{...s,nome,dataInizio:ini,dataFine:fin,visibileDocenti:!!vis,modificabileDocenti:!!mod}:s);showToast("Sessione aggiornata!");}
+  else{const ns={id:uid(),nome,dataInizio:ini,dataFine:fin,visibileDocenti:!!vis,modificabileDocenti:!!mod,lezioni:[],insegnamentiIds:csvApplied?[..._csvSessionInsIds]:null,docentiIds:csvApplied?[..._csvSessionDocIds]:null};S.sessioni.push(ns);S.sessioneAttiva=ns.id;showToast(csvApplied?"✅ Sessione creata e carico importato!":"Sessione creata!");}
+  _csvParsed=null;_csvSessionInsIds=[];_csvSessionDocIds=[];saveState();closeModal();renderApp();
 }
 
-/* ── Tabellone Tab ───────────────────────────────────────────────── */
+/* ── Tabellone Tab ───────────────────────────────────────────── */
 function renderTabelloneTab(cont){
   const sa=getSA();const wrap=document.createElement("div");
   const ar=document.createElement("div");ar.className="action-row";
-  ar.innerHTML=`<div><label class="lbl">Filtra per docente</label>
-    <select id="tf-doc" style="min-width:180px">
-      <option value="">Tutti i docenti</option>
-      ${sortN(S.docenti.map(d=>d.nome)).map(n=>
-        `<option value="${escA(n)}"${TF_DOC===n?" selected":""}>${escH(n)}</option>`).join('')}
-    </select></div>`;
+  ar.innerHTML=`<div><label class="lbl">Filtra per docente</label><select id="tf-doc" style="min-width:180px"><option value="">Tutti i docenti</option>${sortN(S.docenti.map(d=>d.nome)).map(n=>`<option value="${escA(n)}"${TF_DOC===n?" selected":""}>${escH(n)}</option>`).join('')}</select></div>`;
   const right=document.createElement("div");right.style.cssText="margin-left:auto;display:flex;gap:8px";
-  const b1=document.createElement("button");b1.className="btn btn-primary btn-sm";
-  b1.textContent="⬇ Esporta CSV";b1.addEventListener("click",()=>exportSessCSV(sa?.id||""));
-  const b2=document.createElement("button");b2.className="btn btn-warn btn-sm";
-  b2.textContent="🔄 Reset lezioni";b2.addEventListener("click",confirmReset);
+  const b1=document.createElement("button");b1.className="btn btn-primary btn-sm";b1.textContent="⬇ Esporta CSV";b1.addEventListener("click",()=>exportSessCSV(sa?.id||""));
+  const b2=document.createElement("button");b2.className="btn btn-warn btn-sm";b2.textContent="🔄 Reset lezioni";b2.addEventListener("click",()=>openConfirm("Resettare TUTTE le lezioni della sessione attiva?",()=>{const sa=getSA();if(!sa)return;S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:[]}:s);saveState();renderApp();showToast("Sessione resettata.");}));
   right.appendChild(b1);right.appendChild(b2);ar.appendChild(right);wrap.appendChild(ar);
-  const tbDiv=document.createElement("div");wrap.appendChild(tbDiv);
-  cont.innerHTML="";cont.appendChild(wrap);
-  document.getElementById("tf-doc")?.addEventListener("change",e=>{TF_DOC=e.target.value;renderApp()});
+  const tbDiv=document.createElement("div");wrap.appendChild(tbDiv);cont.innerHTML="";cont.appendChild(wrap);
+  document.getElementById("tf-doc")?.addEventListener("change",e=>{TF_DOC=e.target.value;renderApp();});
   renderTabellone(tbDiv,true,TF_DOC||null);
 }
-function confirmReset(){
-  openConfirm("Resettare TUTTE le lezioni della sessione attiva?",()=>{
-    const sa=getSA();if(!sa)return;
-    S.sessioni=S.sessioni.map(s=>s.id===sa.id?{...s,lezioni:[]}:s);
-    saveState();renderApp();showToast("Sessione resettata.");
-  });
-}
 
-/* ── Anagrafiche ─────────────────────────────────────────────────── */
+/* ── Anagrafiche ─────────────────────────────────────────────── */
 function renderAnagrafiche(cont){
-  const sa=getSA();
-  const wrap=document.createElement("div");
-  wrap.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:24px";
-
-  // Determina il sottoinsieme di insegnamenti e docenti per la sessione attiva.
-  // Priorità: 1) se la sessione ha insegnamentiIds/docentiIds (da import CSV) li usa,
-  //           2) altrimenti usa le lezioni effettivamente inserite nella sessione,
-  //           3) se la sessione è vuota e non ha import, mostra tutto.
-  let visInsIds, visDocIds;
-
-  if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length){
-    // Sessione con import CSV: usa le liste registrate
-    visInsIds=new Set(sa.insegnamentiIds);
-    visDocIds=new Set(sa.docentiIds||[]);
-  }else if(sa&&sa.lezioni&&sa.lezioni.length){
-    // Sessione con lezioni ma senza import CSV: ricava dalle lezioni
-    visInsIds=new Set(sa.lezioni.map(l=>{
-      const ins=S.insegnamenti.find(i=>i.nome===l.insegnamento);
-      return ins?ins.id:null;
-    }).filter(Boolean));
-    visDocIds=new Set(sa.lezioni.map(l=>{
-      const doc=S.docenti.find(d=>d.nome===l.docente);
-      return doc?doc.id:null;
-    }).filter(Boolean));
-  }else{
-    // Sessione vuota senza import: lista vuota
-    visInsIds=new Set();
-    visDocIds=new Set();
-  }
-
+  const sa=getSA();const wrap=document.createElement("div");wrap.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:24px";
+  let visInsIds,visDocIds;
+  if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length){visInsIds=new Set(sa.insegnamentiIds);visDocIds=new Set(sa.docentiIds||[]);}
+  else if(sa&&sa.lezioni&&sa.lezioni.length){visInsIds=new Set(sa.lezioni.map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));visDocIds=new Set(sa.lezioni.map(l=>{const d=S.docenti.find(x=>x.nome===l.docente);return d?d.id:null}).filter(Boolean));}
+  else{visInsIds=new Set();visDocIds=new Set();}
   const sessLabel=sa?` — ${escH(sa.nome)}`:'';
-
-  /* Colonna Docenti */
-  const docCol=document.createElement("div");
-  const docHdr=document.createElement("div");
-  docHdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";
-  docHdr.innerHTML=`<div>
-    <h3 style="color:#1a1a1a;font-weight:800;font-size:15px">👩‍🏫 Docenti</h3>
-    <div style="font-size:11px;color:#888;margin-top:2px">Sessione attiva${sessLabel}</div>
-  </div>`;
+  // Docenti
+  const docCol=document.createElement("div");const docHdr=document.createElement("div");docHdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";
+  docHdr.innerHTML=`<div><h3 style="color:#1a1a1a;font-weight:800;font-size:15px">👩‍🏫 Docenti</h3><div style="font-size:11px;color:#888;margin-top:2px">Sessione attiva${sessLabel}</div></div>`;
   const dbtns=document.createElement("div");dbtns.style.cssText="display:flex;gap:6px;flex-shrink:0";
-  const csvBtn=document.createElement("button");csvBtn.className="btn btn-teal btn-xs";
-  csvBtn.textContent="⬇ Export CSV ore";csvBtn.addEventListener("click",exportDocentiCSV);
-  const addD=document.createElement("button");addD.className="btn btn-primary btn-xs";
-  addD.textContent="+ Aggiungi";addD.addEventListener("click",()=>openDocModal(null));
+  const csvBtn=document.createElement("button");csvBtn.className="btn btn-teal btn-xs";csvBtn.textContent="⬇ Export CSV ore";csvBtn.addEventListener("click",exportDocentiCSV);
+  const addD=document.createElement("button");addD.className="btn btn-primary btn-xs";addD.textContent="+ Aggiungi";addD.addEventListener("click",()=>openDocModal(null));
   dbtns.appendChild(csvBtn);dbtns.appendChild(addD);docHdr.appendChild(dbtns);docCol.appendChild(docHdr);
-
-  const docList=document.createElement("div");
-  docList.style.cssText="max-height:560px;overflow-y:auto;padding-right:4px";
-
-  const docentiVisibili=sortN(
-    S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome)
-  );
-
-  if(!docentiVisibili.length){
-    const empty=document.createElement("p");
-    empty.style.cssText="font-size:13px;color:#888;padding:12px 0";
-    empty.textContent="Nessun docente per la sessione attiva.";
-    docList.appendChild(empty);
-  }
-
-  docentiVisibili.forEach(nome=>{
-    const d=S.docenti.find(x=>x.nome===nome);
-    const ni=d?.insegnamenti?.filter(x=>visInsIds.has(x.insId)).length||0;
-    const niTot=d?.insegnamenti?.length||0;
-    const oreD=sa?sa.lezioni.filter(l=>l.docente===nome).length:0;
-    const item=document.createElement("div");item.className="list-item";
-    const info=document.createElement("div");info.style.cssText="flex:1;min-width:0";
-    const subTxt=niTot===0
-      ?"Tutti gli insegnamenti"
-      :`${ni} ins. in questa sessione`;
-    info.innerHTML=`<div class="item-title">${escH(nome)}</div>
-      <div class="item-sub">${subTxt} · ${oreD} ore inserite</div>`;
+  const docList=document.createElement("div");docList.style.cssText="max-height:560px;overflow-y:auto;padding-right:4px";
+  const docentiVis=sortN(S.docenti.filter(d=>visDocIds.has(d.id)).map(d=>d.nome));
+  if(!docentiVis.length){const e=document.createElement("p");e.style.cssText="font-size:13px;color:#888;padding:12px 0";e.textContent="Nessun docente per la sessione attiva.";docList.appendChild(e);}
+  docentiVis.forEach(nome=>{
+    const d=S.docenti.find(x=>x.nome===nome);const ni=d?.insegnamenti?.filter(x=>visInsIds.has(x.insId)).length||0;const niTot=d?.insegnamenti?.length||0;const oreD=sa?sa.lezioni.filter(l=>l.docente===nome).length:0;
+    const item=document.createElement("div");item.className="list-item";const info=document.createElement("div");info.style.cssText="flex:1;min-width:0";
+    info.innerHTML=`<div class="item-title">${escH(nome)}</div><div class="item-sub">${niTot===0?"Tutti gli insegnamenti":`${ni} ins. in questa sessione`} · ${oreD} ore inserite</div>`;
     const bx=document.createElement("div");bx.style.cssText="display:flex;gap:6px;flex-shrink:0";
-    const eb=document.createElement("button");eb.className="btn btn-ghost btn-xs";
-    eb.textContent="✏️ Modifica";eb.addEventListener("click",()=>openDocModal(d.id));
-    const db=document.createElement("button");db.className="btn btn-danger btn-xs";
-    db.textContent="🗑";db.addEventListener("click",()=>deleteDoc(d.id));
-    bx.appendChild(eb);bx.appendChild(db);item.appendChild(info);item.appendChild(bx);
-    docList.appendChild(item);
+    const eb=document.createElement("button");eb.className="btn btn-ghost btn-xs";eb.textContent="✏️ Modifica";eb.addEventListener("click",()=>openDocModal(d.id));
+    const db=document.createElement("button");db.className="btn btn-danger btn-xs";db.textContent="🗑";db.addEventListener("click",()=>deleteDoc(d.id));
+    bx.appendChild(eb);bx.appendChild(db);item.appendChild(info);item.appendChild(bx);docList.appendChild(item);
   });
   docCol.appendChild(docList);wrap.appendChild(docCol);
-
-  /* Colonna Insegnamenti */
-  const insCol=document.createElement("div");
-  const insHdr=document.createElement("div");
-  insHdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";
-  insHdr.innerHTML=`<div>
-    <h3 style="color:#1a1a1a;font-weight:800;font-size:15px">📚 Insegnamenti</h3>
-    <div style="font-size:11px;color:#888;margin-top:2px">Sessione attiva${sessLabel}</div>
-  </div>`;
-  const addI=document.createElement("button");addI.className="btn btn-primary btn-xs";
-  addI.textContent="+ Aggiungi";addI.addEventListener("click",()=>openInsModal(null));
-  insHdr.appendChild(addI);insCol.appendChild(insHdr);
-
-  const insList=document.createElement("div");
-  insList.style.cssText="max-height:560px;overflow-y:auto;padding-right:4px";
-
-  const insegnamentiVisibili=S.insegnamenti.filter(i=>visInsIds.has(i.id));
-
-  if(!insegnamentiVisibili.length){
-    const empty=document.createElement("p");
-    empty.style.cssText="font-size:13px;color:#888;padding:12px 0";
-    empty.textContent="Nessun insegnamento per la sessione attiva.";
-    insList.appendChild(empty);
-  }
-
-  insegnamentiVisibili.forEach(ins=>{
-    const oreIns=sa?sa.lezioni.filter(l=>l.insegnamento===ins.nome).length:0;
-    const item=document.createElement("div");item.className="list-item";
-    const info=document.createElement("div");info.style.cssText="flex:1;min-width:0";
-    info.innerHTML=`<div class="item-title" style="font-size:12px">${escH(ins.nome)}</div>
-      <div class="item-sub">${ins.lezioniAssegnate} ore previste · ${oreIns} inserite</div>`;
+  // Insegnamenti
+  const insCol=document.createElement("div");const insHdr=document.createElement("div");insHdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";
+  insHdr.innerHTML=`<div><h3 style="color:#1a1a1a;font-weight:800;font-size:15px">📚 Insegnamenti</h3><div style="font-size:11px;color:#888;margin-top:2px">Sessione attiva${sessLabel}</div></div>`;
+  const addI=document.createElement("button");addI.className="btn btn-primary btn-xs";addI.textContent="+ Aggiungi";addI.addEventListener("click",()=>openInsModal(null));insHdr.appendChild(addI);insCol.appendChild(insHdr);
+  const insList=document.createElement("div");insList.style.cssText="max-height:560px;overflow-y:auto;padding-right:4px";
+  const insVis=S.insegnamenti.filter(i=>visInsIds.has(i.id));
+  if(!insVis.length){const e=document.createElement("p");e.style.cssText="font-size:13px;color:#888;padding:12px 0";e.textContent="Nessun insegnamento per la sessione attiva.";insList.appendChild(e);}
+  insVis.forEach(ins=>{
+    const oreIns=sa?sa.lezioni.filter(l=>l.insegnamento===ins.nome).length:0;const item=document.createElement("div");item.className="list-item";const info=document.createElement("div");info.style.cssText="flex:1;min-width:0";
+    info.innerHTML=`<div class="item-title" style="font-size:12px">${escH(ins.nome)}</div><div class="item-sub">${ins.lezioniAssegnate} ore previste · ${oreIns} inserite</div>`;
     const bx=document.createElement("div");bx.style.cssText="display:flex;gap:6px;flex-shrink:0";
-    const eb=document.createElement("button");eb.className="btn btn-ghost btn-xs";
-    eb.textContent="✏️ Modifica";eb.addEventListener("click",()=>openInsModal(ins.id));
-    const db=document.createElement("button");db.className="btn btn-danger btn-xs";
-    db.textContent="🗑";db.addEventListener("click",()=>deleteIns(ins.id));
-    bx.appendChild(eb);bx.appendChild(db);item.appendChild(info);item.appendChild(bx);
-    insList.appendChild(item);
+    const eb=document.createElement("button");eb.className="btn btn-ghost btn-xs";eb.textContent="✏️ Modifica";eb.addEventListener("click",()=>openInsModal(ins.id));
+    const db=document.createElement("button");db.className="btn btn-danger btn-xs";db.textContent="🗑";db.addEventListener("click",()=>deleteIns(ins.id));
+    bx.appendChild(eb);bx.appendChild(db);item.appendChild(info);item.appendChild(bx);insList.appendChild(item);
   });
-  insCol.appendChild(insList);wrap.appendChild(insCol);
-  cont.innerHTML="";cont.appendChild(wrap);
+  insCol.appendChild(insList);wrap.appendChild(insCol);cont.innerHTML="";cont.appendChild(wrap);
 }
-
 function openDocModal(id){
-  const d=id?S.docenti.find(x=>x.id===id):null;
-  const vinc=d?.insegnamenti||[];const vmap={};
-  vinc.forEach(v=>{vmap[v.insId]={checked:true,maxOre:v.maxOre}});
-
-  // Mostra solo gli insegnamenti della sessione attiva
-  const sa=getSA();
-  let sessInsIds;
-  if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length){
-    sessInsIds=new Set(sa.insegnamentiIds);
-  }else if(sa&&sa.lezioni&&sa.lezioni.length){
-    sessInsIds=new Set(sa.lezioni.map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));
-  }else{
-    sessInsIds=new Set();
-  }
-  const insegnamentiSessione=S.insegnamenti.filter(i=>sessInsIds.has(i.id));
-  openModal(`<div class="modal-box">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <h3 style="color:${M};font-weight:800;font-size:15px">${d?"Modifica docente":"Nuovo docente"}</h3>
-      <button id="dm-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button>
-    </div>
-    <div style="margin-bottom:13px"><label class="lbl">Nome e cognome *</label>
-      <input type="text" id="d-nome" value="${escA(d?.nome||'')}" placeholder="Nome Cognome"/></div>
-    <div style="margin-bottom:6px">
-      <label class="lbl">Insegnamenti abilitati e ore massime</label>
-      <p style="font-size:11px;color:#555;margin-bottom:8px">
-        Tutto deselezionato = tutti gli insegnamenti senza limite. Spunta per vincolare; inserisci max ore (vuoto = nessun limite).</p>
+  const d=id?S.docenti.find(x=>x.id===id):null;const vinc=d?.insegnamenti||[];const vmap={};vinc.forEach(v=>{vmap[v.insId]={checked:true,maxOre:v.maxOre};});
+  const sa=getSA();let sessInsIds;
+  if(sa&&sa.insegnamentiIds&&sa.insegnamentiIds.length)sessInsIds=new Set(sa.insegnamentiIds);
+  else if(sa&&sa.lezioni&&sa.lezioni.length)sessInsIds=new Set(sa.lezioni.map(l=>{const i=S.insegnamenti.find(x=>x.nome===l.insegnamento);return i?i.id:null}).filter(Boolean));
+  else sessInsIds=new Set();
+  const insS=S.insegnamenti.filter(i=>sessInsIds.has(i.id));
+  openModal(`<div class="modal-box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="color:${M};font-weight:800;font-size:15px">${d?"Modifica docente":"Nuovo docente"}</h3><button id="dm-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button></div>
+    <div style="margin-bottom:13px"><label class="lbl">Nome e cognome *</label><input type="text" id="d-nome" value="${escA(d?.nome||'')}" placeholder="Nome Cognome"/></div>
+    <div style="margin-bottom:6px"><label class="lbl">Insegnamenti abilitati e ore massime</label><p style="font-size:11px;color:#555;margin-bottom:8px">Tutto deselezionato = tutti gli insegnamenti. Spunta per vincolare; inserisci max ore (vuoto = nessun limite).</p>
       <div style="max-height:280px;overflow-y:auto;border:1.5px solid #e0c8d8;border-radius:8px;background:#fafafa">
-        <div class="ore-row" style="background:${ML};font-weight:700;color:#1a1a1a;border-radius:8px 8px 0 0">
-          <span style="flex:0 0 24px"></span>
-          <span style="flex:1">Insegnamento</span>
-          <span style="flex:0 0 90px;text-align:center;font-size:11px">Max ore</span>
-        </div>
-        ${insegnamentiSessione.map(ins=>{const v=vmap[ins.id]||{};return`<div class="ore-row">
-          <input type="checkbox" class="d-ins-cb" value="${ins.id}" ${v.checked?'checked':''}
-            style="width:auto;accent-color:${M};flex:0 0 auto" onchange="toggleOreInput(this)"/>
-          <span style="flex:1;color:#222;font-size:12px">${escH(ins.nome)}</span>
-          <input type="number" class="ore-inp d-ore-inp" data-ins="${ins.id}"
-            value="${v.maxOre!=null?v.maxOre:''}" min="1" placeholder="∞"
-            style="${v.checked?'':'display:none'}"/>
-        </div>`}).join('')}
-      </div>
-    </div>
-    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
-      <button id="dm-cancel" class="btn btn-ghost">Annulla</button>
-      <button id="dm-save" class="btn btn-primary">Salva</button>
-    </div>
-  </div>`);
-  document.getElementById("dm-close").onclick=closeModal;
-  document.getElementById("dm-cancel").onclick=closeModal;
-  document.getElementById("dm-save").onclick=()=>saveDoc(id||"");
+        <div class="ore-row" style="background:${ML};font-weight:700;color:#1a1a1a;border-radius:8px 8px 0 0"><span style="flex:0 0 24px"></span><span style="flex:1">Insegnamento</span><span style="flex:0 0 90px;text-align:center;font-size:11px">Max ore</span></div>
+        ${insS.map(ins=>{const v=vmap[ins.id]||{};return`<div class="ore-row"><input type="checkbox" class="d-ins-cb" value="${ins.id}" ${v.checked?'checked':''} style="width:auto;accent-color:${M};flex:0 0 auto" onchange="toggleOreInput(this)"/><span style="flex:1;color:#222;font-size:12px">${escH(ins.nome)}</span><input type="number" class="ore-inp d-ore-inp" data-ins="${ins.id}" value="${v.maxOre!=null?v.maxOre:''}" min="1" placeholder="∞" style="${v.checked?'':'display:none'}"/></div>`;}).join('')}
+      </div></div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px"><button id="dm-cancel" class="btn btn-ghost">Annulla</button><button id="dm-save" class="btn btn-primary">Salva</button></div></div>`);
+  document.getElementById("dm-close").onclick=closeModal;document.getElementById("dm-cancel").onclick=closeModal;document.getElementById("dm-save").onclick=()=>saveDoc(id||"");
 }
-function toggleOreInput(cb){
-  const inp=cb.closest(".ore-row")?.querySelector(".d-ore-inp");
-  if(inp)inp.style.display=cb.checked?"":"none";
-}
+function toggleOreInput(cb){const inp=cb.closest(".ore-row")?.querySelector(".d-ore-inp");if(inp)inp.style.display=cb.checked?"":"none";}
 function saveDoc(id){
-  const nome=(document.getElementById("d-nome")||{}).value?.trim();
-  if(!nome){showErr("Il nome è obbligatorio");return}
-  const cbs=[...document.querySelectorAll(".d-ins-cb:checked")];
-  const insegnamenti=cbs.map(cb=>{
-    const inp=cb.closest(".ore-row")?.querySelector(".d-ore-inp");
-    const maxOre=inp&&inp.value?parseInt(inp.value):null;
-    return{insId:cb.value,maxOre:isNaN(maxOre)?null:maxOre};
-  });
-  if(id){
-    S.docenti=S.docenti.map(d=>d.id===id?{...d,nome,insegnamenti}:d);showToast("Docente aggiornato!");
-  }else{
-    if(S.docenti.find(d=>d.nome.toLowerCase()===nome.toLowerCase())){showErr("Docente già esistente");return}
-    S.docenti.push({id:uid(),nome,insegnamenti});showToast("Docente aggiunto!");
-  }
+  const nome=(document.getElementById("d-nome")||{}).value?.trim();if(!nome){showErr("Il nome è obbligatorio");return;}
+  const cbs=[...document.querySelectorAll(".d-ins-cb:checked")];const insegnamenti=cbs.map(cb=>{const inp=cb.closest(".ore-row")?.querySelector(".d-ore-inp");const maxOre=inp&&inp.value?parseInt(inp.value):null;return{insId:cb.value,maxOre:isNaN(maxOre)?null:maxOre};});
+  if(id){S.docenti=S.docenti.map(d=>d.id===id?{...d,nome,insegnamenti}:d);showToast("Docente aggiornato!");}
+  else{if(S.docenti.find(d=>d.nome.toLowerCase()===nome.toLowerCase())){showErr("Docente già esistente");return;}S.docenti.push({id:uid(),nome,insegnamenti});showToast("Docente aggiunto!");}
   saveState();closeModal();renderApp();
 }
-function deleteDoc(id){
-  openConfirm("Eliminare questo docente?",()=>{
-    S.docenti=S.docenti.filter(d=>d.id!==id);
-    saveState();renderApp();showToast("Docente eliminato.");
-  });
-}
+function deleteDoc(id){openConfirm("Eliminare questo docente?",()=>{S.docenti=S.docenti.filter(d=>d.id!==id);saveState();renderApp();showToast("Docente eliminato.");});}
 function openInsModal(id){
   const ins=id?S.insegnamenti.find(i=>i.id===id):null;
-  openModal(`<div class="modal-box" style="max-width:420px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <h3 style="color:${M};font-weight:800;font-size:15px">${ins?"Modifica":"Nuovo"} insegnamento</h3>
-      <button id="im-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button>
-    </div>
-    <div style="margin-bottom:12px"><label class="lbl">Nome insegnamento *</label>
-      <input type="text" id="i-nome" value="${escA(ins?.nome||'')}" placeholder="Nome insegnamento"/></div>
-    <div style="margin-bottom:12px"><label class="lbl">Lezioni previste</label>
-      <input type="number" id="i-lez" value="${ins?.lezioniAssegnate||12}" min="1"/></div>
-    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
-      <button id="im-cancel" class="btn btn-ghost">Annulla</button>
-      <button id="im-save" class="btn btn-primary">Salva</button>
-    </div>
-  </div>`);
-  document.getElementById("im-close").onclick=closeModal;
-  document.getElementById("im-cancel").onclick=closeModal;
-  document.getElementById("im-save").onclick=()=>saveIns(id||"");
+  openModal(`<div class="modal-box" style="max-width:420px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="color:${M};font-weight:800;font-size:15px">${ins?"Modifica":"Nuovo"} insegnamento</h3><button id="im-close" style="border:none;background:none;cursor:pointer;font-size:22px;color:#999">×</button></div>
+    <div style="margin-bottom:12px"><label class="lbl">Nome insegnamento *</label><input type="text" id="i-nome" value="${escA(ins?.nome||'')}" placeholder="Nome insegnamento"/></div>
+    <div style="margin-bottom:12px"><label class="lbl">Lezioni previste</label><input type="number" id="i-lez" value="${ins?.lezioniAssegnate||12}" min="1"/></div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px"><button id="im-cancel" class="btn btn-ghost">Annulla</button><button id="im-save" class="btn btn-primary">Salva</button></div></div>`);
+  document.getElementById("im-close").onclick=closeModal;document.getElementById("im-cancel").onclick=closeModal;document.getElementById("im-save").onclick=()=>saveIns(id||"");
 }
 function saveIns(id){
-  const nome=(document.getElementById("i-nome")||{}).value?.trim();
-  const lez=parseInt((document.getElementById("i-lez")||{}).value)||12;
-  if(!nome){showErr("Il nome è obbligatorio");return}
-  if(id){S.insegnamenti=S.insegnamenti.map(i=>i.id===id?{...i,nome,lezioniAssegnate:lez}:i);showToast("Aggiornato!")}
-  else{S.insegnamenti.push({id:uid(),nome,lezioniAssegnate:lez});showToast("Insegnamento aggiunto!")}
-  saveState();closeModal();renderApp();
+  const nome=(document.getElementById("i-nome")||{}).value?.trim();const lez=parseInt((document.getElementById("i-lez")||{}).value)||12;if(!nome){showErr("Il nome è obbligatorio");return;}
+  if(id)S.insegnamenti=S.insegnamenti.map(i=>i.id===id?{...i,nome,lezioniAssegnate:lez}:i);else S.insegnamenti.push({id:uid(),nome,lezioniAssegnate:lez});
+  saveState();closeModal();renderApp();showToast(id?"Aggiornato!":"Insegnamento aggiunto!");
 }
-function deleteIns(id){
-  openConfirm("Eliminare questo insegnamento?",()=>{
-    S.insegnamenti=S.insegnamenti.filter(i=>i.id!==id);
-    saveState();renderApp();showToast("Eliminato.");
-  });
-}
+function deleteIns(id){openConfirm("Eliminare questo insegnamento?",()=>{S.insegnamenti=S.insegnamenti.filter(i=>i.id!==id);saveState();renderApp();showToast("Eliminato.");});}
 
-/* ── Navbar + render principale ──────────────────────────────────── */
+/* ── Navbar + render principale ──────────────────────────────── */
 function renderApp(){
   document.getElementById("root").innerHTML=`
-  <div style="background:${M};color:#fff;padding:0 24px;display:flex;align-items:center;gap:20px;
-    height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(212,22,140,.35)">
-    <div style="font-weight:800;font-size:15px">🎓 ${escH(S.corsoDiLaurea)}</div>
+  <div style="background:${M};color:#fff;padding:0 24px;display:flex;align-items:center;gap:20px;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(212,22,140,.35)">
+    <div style="font-weight:800;font-size:15px">🎓 ${escH(S.corsoDiLaurea||"Gestionale Didattica")}</div>
     <div style="font-size:12px;opacity:.85">A.A. ${S.annoAccademico}</div>
     <div style="margin-left:auto;display:flex;gap:8px" id="nav-btns"></div>
   </div>
   <div style="max-width:1440px;margin:0 auto;padding:28px 20px">
     <div style="margin-bottom:22px">
-      <h1 style="margin:0;font-size:22px;font-weight:800;color:${MD}">
-        ${ROLE==='docente'?"Inserimento Lezioni":"Dashboard Presidente"}</h1>
-      <p style="margin:5px 0 0;color:#555;font-size:13px">
-        ${ROLE==='docente'
-          ?"Seleziona il tuo nome e l'insegnamento, poi inserisci le lezioni nel tabellone."
-          :"Gestisci sessioni, tabellone, insegnamenti e docenti."}</p>
+      <h1 style="margin:0;font-size:22px;font-weight:800;color:${MD}">${ROLE==='docente'?"Inserimento Lezioni":"Dashboard Presidente"}</h1>
+      <p style="margin:5px 0 0;color:#555;font-size:13px">${ROLE==='docente'?"Seleziona il tuo nome e l'insegnamento, poi inserisci le lezioni nel tabellone.":"Gestisci sessioni, tabellone, insegnamenti e docenti."}</p>
     </div>
     <div id="vc"></div>
   </div>`;
-
   ["docente","presidente"].forEach(r=>{
-    const b=document.createElement("button");
-    b.textContent=r==="docente"?"👩‍🏫 Docente":"👔 Presidente CdS";
-    b.style.cssText=`background:${ROLE===r?'#fff':'transparent'};color:${ROLE===r?M:'#fff'};`+
-      `border:2px solid #fff;border-radius:20px;padding:5px 16px;font-weight:800;font-size:12px;cursor:pointer;transition:all .15s`;
-    b.addEventListener("click",()=>switchRole(r));
-    document.getElementById("nav-btns").appendChild(b);
+    const b=document.createElement("button");b.textContent=r==="docente"?"👩‍🏫 Docente":"👔 Presidente CdS";
+    b.style.cssText=`background:${ROLE===r?'#fff':'transparent'};color:${ROLE===r?M:'#fff'};border:2px solid #fff;border-radius:20px;padding:5px 16px;font-weight:800;font-size:12px;cursor:pointer;transition:all .15s`;
+    b.addEventListener("click",()=>switchRole(r));document.getElementById("nav-btns").appendChild(b);
   });
-
+  // Pulsante export stato (solo presidente autenticato)
+  if(ROLE==="presidente"&&AUTH){
+    const expBtn=document.createElement("button");expBtn.className="btn btn-sm";
+    expBtn.style.cssText="background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.5);padding:5px 12px;font-size:12px";
+    expBtn.textContent="📤 Esporta stato per docenti";expBtn.addEventListener("click",exportStato);
+    document.getElementById("nav-btns").appendChild(expBtn);
+  }
   const vc=document.getElementById("vc");
   if(ROLE==="docente")renderVistaDocente(vc);else renderDashboard(vc);
 }
+function switchRole(r){ROLE=r;if(r==="presidente"&&!AUTH)AUTH=false;renderApp();}
 
-function switchRole(r){
-  ROLE=r;
-  if(r==="presidente"&&!AUTH)AUTH=false;
-  renderApp();
-}
-
-/* ── Avvio ───────────────────────────────────────────────────────── */
-renderApp();
+/* ── Avvio ───────────────────────────────────────────────────── */
+// Se non ci sono dati, mostra la schermata di benvenuto
+if(!S.sessioni.length){showWelcomeScreen();}else{renderApp();}
 </script>
 </body>
 </html>
