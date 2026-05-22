@@ -458,42 +458,56 @@ function renderVistaDocente(cont){
   syncBtnWrap.appendChild(syncBtn);syncBanner.appendChild(syncBtnWrap);
   wrap.appendChild(syncBanner);
 
-  // Helper: docente ha ore disponibili?
-  function docenteHaOre(docNome){
-    const insDisp=insForDoc(docNome);
-    for(const i of insDisp){
-      const gUsato=countLZ(i.nome);if(gUsato>=i.lezioniAssegnate)continue;
-      const mo=maxOreForDocIns(docNome,i.nome);if(mo!=null){if(oreDocIns(docNome,i.nome)<mo)return true;}else return true;
-    }
-    return false;
-  }
-
-  // Pool docenti
+  // Pool docenti: tutti quelli della sessione, indipendentemente dalle ore residue.
+  // Il blocco all'inserimento avviene già a livello di slot (checkSpazio).
   let docentiPool;
-  if(sa&&sa.docentiIds&&sa.docentiIds.length){const vd=new Set(sa.docentiIds);docentiPool=S.docenti.filter(d=>vd.has(d.id)).map(d=>d.nome);}
-  else docentiPool=S.docenti.map(d=>d.nome);
-  const docentiSessione=sortN(docentiPool.filter(n=>docenteHaOre(n)));
+  if(sa&&sa.docentiIds&&sa.docentiIds.length){
+    const vd=new Set(sa.docentiIds);
+    docentiPool=S.docenti.filter(d=>vd.has(d.id)).map(d=>d.nome);
+  }else{
+    docentiPool=S.docenti.map(d=>d.nome);
+  }
+  const docentiSessione=sortN(docentiPool);
   if(DOCSEL&&!docentiSessione.includes(DOCSEL)){DOCSEL="";INSSEL="";}
 
   // Barra selezione
   const bar=document.createElement("div");bar.style.cssText=`background:${ML};border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end`;
   const sdW=document.createElement("div");sdW.innerHTML=`<label class="lbl" style="color:${MD}">Il mio nome</label>`;
   const sd=document.createElement("select");sd.style.minWidth="200px";
-  if(!docentiSessione.length){sd.innerHTML=`<option value="" disabled>Nessun docente con ore disponibili</option>`;}
-  else{sd.innerHTML=`<option value="">— Seleziona —</option>`+docentiSessione.map(n=>`<option value="${escA(n)}"${DOCSEL===n?' selected':''}>${escH(n)}</option>`).join('');}
+  if(!docentiSessione.length){
+    sd.innerHTML=`<option value="" disabled>Nessun docente nella sessione attiva</option>`;
+  }else{
+    sd.innerHTML=`<option value="">— Seleziona —</option>`+
+      docentiSessione.map(n=>`<option value="${escA(n)}"${DOCSEL===n?' selected':''}>${escH(n)}</option>`).join('');
+  }
   sd.addEventListener("change",e=>{DOCSEL=e.target.value;INSSEL="";renderApp();});
   sdW.appendChild(sd);bar.appendChild(sdW);
+
   if(DOCSEL){
     const siW=document.createElement("div");siW.innerHTML=`<label class="lbl" style="color:${MD}">Insegnamento</label>`;
-    const si=document.createElement("select");si.style.minWidth="250px";
-    si.innerHTML=`<option value="">— Seleziona —</option>`+insDispo.map(i=>`<option value="${escA(i.nome)}"${INSSEL===i.nome?' selected':''}>${escH(i.nome)}</option>`).join('');
-    si.addEventListener("change",e=>{INSSEL=e.target.value;renderApp();});siW.appendChild(si);bar.appendChild(siW);
+    const si=document.createElement("select");si.style.minWidth="260px";
+    // Mostra tutti gli insegnamenti del docente; indica visivamente quelli esauriti
+    si.innerHTML=`<option value="">— Seleziona —</option>`+insDispo.map(i=>{
+      const globaleUsato=countLZ(i.nome);
+      const mo=maxOreForDocIns(DOCSEL,i.nome);
+      const docUsato=oreDocIns(DOCSEL,i.nome);
+      const globaleEsaurito=globaleUsato>=i.lezioniAssegnate;
+      const docEsaurito=mo!=null&&docUsato>=mo;
+      const esaurito=globaleEsaurito||docEsaurito;
+      const label=escH(i.nome)+(esaurito?" ✓":"");
+      return`<option value="${escA(i.nome)}"${INSSEL===i.nome?' selected':''}>${label}</option>`;
+    }).join('');
+    si.addEventListener("change",e=>{INSSEL=e.target.value;renderApp();});
+    siW.appendChild(si);bar.appendChild(siW);
   }
   if(INSSEL){
-    const cnt=document.createElement("div");cnt.style.cssText=`padding:8px 14px;background:#fff;border-radius:8px;border:1.5px solid ${M}`;
-    cnt.innerHTML=`<div style="font-size:11px;color:#444;margin-bottom:2px">Globale: <b style="color:${ins_cnt>=ins_ass?"#e24b4a":MD}">${ins_cnt}/${ins_ass}</b></div>`+
-      (maxOre!=null?`<div style="font-size:11px;color:#444">Tue ore: <b style="color:${oreDoc>=maxOre?"#e24b4a":MD}">${oreDoc}/${maxOre}</b></div>`:'')+
-      (spazio<=0?`<div><span class="badge" style="background:#e24b4a;margin-top:4px;display:inline-block">⛔ LIMITE</span></div>`:'');
+    const cnt=document.createElement("div");
+    cnt.style.cssText=`padding:8px 14px;background:#fff;border-radius:8px;border:1.5px solid ${spazio<=0?"#27ae60":M}`;
+    cnt.innerHTML=
+      `<div style="font-size:11px;color:#444;margin-bottom:2px">Globale: <b style="color:${ins_cnt>=ins_ass?"#27ae60":MD}">${ins_cnt}/${ins_ass}</b></div>`+
+      (maxOre!=null?`<div style="font-size:11px;color:#444">Tue ore: <b style="color:${oreDoc>=maxOre?"#27ae60":MD}">${oreDoc}/${maxOre}</b></div>`:'')+
+      (spazio<=0?`<div><span class="badge" style="background:#27ae60;margin-top:4px;display:inline-block">✅ Completato</span></div>`:
+        `<div style="font-size:11px;color:#555;margin-top:2px">Ore residue: <b style="color:${MD}">${spazio}</b></div>`);
     bar.appendChild(cnt);
   }
   if(DOCSEL&&myLZ.length){const icsBtn=document.createElement("button");icsBtn.className="btn btn-info btn-sm";icsBtn.textContent="📅 Esporta Google Calendar";icsBtn.addEventListener("click",()=>exportICS(DOCSEL));bar.appendChild(icsBtn);}
@@ -514,15 +528,31 @@ function renderVistaDocente(cont){
     </div><div id="rc-results"></div>`;
     wrap.appendChild(rcBox);setTimeout(()=>document.getElementById("btn-cerca")?.addEventListener("click",cercaSlot),0);
   }else if(DOCSEL&&INSSEL&&sessOk&&spazio<=0){
-    const sb=document.createElement("div");sb.style.cssText="background:#fdecea;border:1.5px solid #e24b4a;border-radius:10px;padding:14px 16px;margin-bottom:16px;color:#c0392b;font-weight:700;font-size:13px";sb.textContent="⛔ Hai esaurito le ore disponibili per questo insegnamento.";wrap.appendChild(sb);
+    // Ore esaurite: messaggio informativo (non bloccante), il calendario resta visibile
+    const sb=document.createElement("div");
+    sb.style.cssText="background:#f0faf4;border:1.5px solid #27ae60;border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#1e8449;font-size:13px";
+    sb.innerHTML=`<b>✅ Ore completate per questo insegnamento.</b> Il calendario mostra le lezioni già inserite. Se hai bisogno di aggiungere ore, contatta il Presidente del CdS.`;
+    wrap.appendChild(sb);
   }
 
   const hint=document.createElement("p");hint.style.cssText="font-size:12px;color:#555;margin-bottom:10px";
   const tbDiv=document.createElement("div");wrap.appendChild(tbDiv);
   cont.innerHTML="";cont.appendChild(wrap);
-  if(sessOk&&DOCSEL&&INSSEL){hint.textContent="Clicca su una cella libera per inserire una lezione.";wrap.insertBefore(hint,tbDiv);renderTabellone(tbDiv,false,DOCSEL);}
-  else if(sessOk&&DOCSEL&&!INSSEL){hint.textContent="Seleziona l'insegnamento per visualizzare il calendario.";wrap.insertBefore(hint,tbDiv);}
-  else{hint.textContent="Seleziona il tuo nome e l'insegnamento per iniziare.";wrap.insertBefore(hint,tbDiv);}
+
+  // Il tabellone si mostra sempre quando docente e insegnamento sono selezionati
+  if(sessOk&&DOCSEL&&INSSEL){
+    hint.textContent=spazio>0
+      ?"Clicca su una cella libera per inserire una lezione. Le celle colorate mostrano le tue lezioni già inserite."
+      :"Le tue lezioni calendarizzate per questo insegnamento:";
+    wrap.insertBefore(hint,tbDiv);
+    renderTabellone(tbDiv,false,DOCSEL);
+  }else if(sessOk&&DOCSEL&&!INSSEL){
+    hint.textContent="Seleziona l'insegnamento per visualizzare il calendario.";
+    wrap.insertBefore(hint,tbDiv);
+  }else{
+    hint.textContent="Seleziona il tuo nome e l'insegnamento per iniziare.";
+    wrap.insertBefore(hint,tbDiv);
+  }
 }
 
 function cercaSlot(){
