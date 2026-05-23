@@ -153,12 +153,32 @@ function stateToFB(s){
     corsoDiLaurea:s.corsoDiLaurea||"Scienze Motorie L-22"
   };
 }
+// Normalizza un valore Firebase che può essere array o oggetto con chiavi numeriche
+function normArr(v){
+  if(!v)return[];
+  if(Array.isArray(v))return v;
+  return Object.values(v);
+}
+
 function fbToState(data){
   if(!data)return null;
+  const insegnamenti=normArr(data.insegnamenti);
+  const docenti=normArr(data.docenti).map(d=>({
+    ...d,
+    // d.insegnamenti può essere {0:{insId,maxOre}, 1:...} dopo Firebase
+    insegnamenti:normArr(d.insegnamenti)
+  }));
+  const sessioni=normArr(data.sessioni).map(s=>({
+    ...s,
+    // s.lezioni può essere {0:{...}, 1:...} dopo Firebase
+    lezioni:normArr(s.lezioni),
+    insegnamentiIds:normArr(s.insegnamentiIds),
+    docentiIds:normArr(s.docentiIds)
+  }));
   return{
-    insegnamenti:Array.isArray(data.insegnamenti)?data.insegnamenti:(data.insegnamenti?Object.values(data.insegnamenti):[]),
-    docenti:Array.isArray(data.docenti)?data.docenti:(data.docenti?Object.values(data.docenti):[]),
-    sessioni:Array.isArray(data.sessioni)?data.sessioni:(data.sessioni?Object.values(data.sessioni):[]),
+    insegnamenti,
+    docenti,
+    sessioni,
     sessioneAttiva:data.sessioneAttiva||"",
     annoAccademico:data.annoAccademico||"2025-2026",
     corsoDiLaurea:data.corsoDiLaurea||"Scienze Motorie L-22"
@@ -427,7 +447,7 @@ async function saveSlot(ctxId){
       const arr=Array.isArray(sessioni)?sessioni:Object.values(sessioni);
       const liveS=arr.find(s=>s.id===sa.id);
       if(liveS){
-        let lz=[...(liveS.lezioni||[])];
+        let lz=normArr(liveS.lezioni);
         if(lezId)lz=lz.filter(l=>l.id!==lezId);
         // Controlla conflitti in tempo reale
         const conflitti=nuove.filter(n=>lz.find(x=>x.data===n.data&&x.fasciaOraria===n.fasciaOraria));
@@ -649,7 +669,7 @@ async function prenotaSelezionati(spazio){
       const arr=Array.isArray(sessioni)?sessioni:Object.values(sessioni);
       const liveS=arr.find(s=>s.id===sa.id);
       if(liveS){
-        const lzLive=[...(liveS.lezioni||[])];
+        const lzLive=normArr(liveS.lezioni);
         const conflitti=lz.filter(n=>lzLive.find(x=>x.data===n.data&&x.fasciaOraria===n.fasciaOraria));
         if(conflitti.length>0){showErr(`${conflitti.length} slot già occupati. Ricarica la pagina e riprova.`);return;}
         const nuove=lz.filter(n=>!lzLive.find(x=>x.data===n.data&&x.fasciaOraria===n.fasciaOraria));
